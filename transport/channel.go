@@ -1,8 +1,7 @@
 package transport
 
 import (
-	"../model"
-	"fmt"
+	"github.com/dedis/student_19_libp2p_tlc/model"
 )
 
 type Channel struct {
@@ -14,11 +13,13 @@ type Channel struct {
 func (c *Channel) Broadcast(msg *model.Message) {
 	go func() {
 		for _, peerChannel := range *c.outgoingChannels {
-			select {
-			case *peerChannel <- msg:
-			default:
-				fmt.Printf("channel full, msg : %v\n", msg.Source)
-			}
+			// TODO handle when channel is full
+			*peerChannel <- msg
+			//select {
+			//case *peerChannel <- msg:
+			//default:
+			//	fmt.Printf("channel full, msg : %v\n", msg.Source)
+			//}
 		}
 	}()
 }

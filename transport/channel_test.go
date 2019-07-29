@@ -1,8 +1,8 @@
 package transport
 
 import (
-	"../model"
 	"fmt"
+	"github.com/dedis/student_19_libp2p_tlc/model"
 	"sync"
 	"testing"
 )
@@ -54,12 +54,12 @@ func startTest(nodes []*model.Node, stop int) {
 
 func logOutput(t *testing.T, nodes []*model.Node) {
 	for i := range nodes {
-		t.Logf("nodes: %d , TimeStep : %d , History: %v", i, nodes[i].TimeStep, nodes[i].History)
+		t.Logf("nodes: %d , TimeStep : %d", i, nodes[i].TimeStep)
 	}
 }
 
 func TestChannel(t *testing.T) {
-	nodes := setup(3)
+	nodes := setup(10)
 	startTest(nodes, 10)
 	logOutput(t, nodes)
 
