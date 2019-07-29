@@ -17,11 +17,19 @@ import (
 )
 
 type libp2pPubSub struct {
-	hosts []host.Host
+	pubsub       *pubsub.PubSub       // PubSub of each individual node
+	subscription *pubsub.Subscription // Subscription of individual node
+	topic        string               // PubSub topic
 }
 
 func (c *libp2pPubSub) Broadcast(msg *model.Message) {
-
+	// Broadcasting to a topic in PubSub
+	// TODO: I have to use Protobuf here for sending messages
+	err := c.pubsub.Publish(c.topic, []byte("a message from friend"))
+	if err != nil {
+		fmt.Printf("Error : %v\n", err)
+		return
+	}
 }
 
 func (c *libp2pPubSub) Send(msg *model.Message, n *model.Node) {
@@ -29,71 +37,60 @@ func (c *libp2pPubSub) Send(msg *model.Message, n *model.Node) {
 }
 
 func (c *libp2pPubSub) Receive() *model.Message {
+	// Blocking function for consuming newly received messages
+	// We can access message here, but we need subscription. Then we can start processing the received message
+	msg, _ := c.subscription.Next(context.Background())
+	fmt.Printf("I was waiting for the message : %s\n", msg.Data)
 
 }
 
-// createHosts creates some peers on localhost and configures them to use libp2p.
-func (c *libp2pPubSub) createHosts(n int) {
-	c.hosts = make([]host.Host, 0)
-	startingPort := 10000
+// createHost creates a peer on localhost and configures it to use libp2p.
+func (c *libp2pPubSub) createHost(n int, nodeId int, port int) *host.Host {
+	//c.hosts = make([]host.Host, 0)
 	//var err error
 
 	// Creating nodes
-	for i := 0; i < n; i++ {
-		h, err := createHost(startingPort + i)
-		if err != nil {
-			fmt.Printf("Error : %v\n", err)
-			return
-		}
-
-		c.hosts = append(c.hosts, h)
-		fmt.Printf("Node %v is %s\n", i, getLocalhostAddress(h))
+	h, err := createHost(port)
+	if err != nil {
+		panic(err)
 	}
 
-	defer func() {
-		for _, h := range c.hosts {
-			_ = h.Close()
-		}
-	}()
+	fmt.Printf("Node %v is %s\n", nodeId, getLocalhostAddress(h))
+
+	// Returning pointer to the created libp2p host
+	return &h
+	/*
+		// TODO : it is wrong. you are closing it immediately!
+		defer func() {
+			for _, h := range c.hosts {
+				_ = h.Close()
+			}
+		}()
+	*/
+
+	// TODO: I have to connect peers to each other.
 }
 
-// initializePubSubs creates a PubSub for every peer and also subscribes to a topic
-func (c *libp2pPubSub) initializePubSubs() {
+// initializePubSub creates a PubSub for the peer and also subscribes to a topic
+func (c *libp2pPubSub) initializePubSub(h host.Host) {
 	var err error
-	// Creating pubsubs
-	pubsubs := make([]*pubsub.PubSub, len(c.hosts))
-	for i, h := range c.hosts {
-		// every peer has its own PubSub
-		pubsubs[i], err = applyPubSub(h)
-		if err != nil {
-			fmt.Printf("Error : %v\n", err)
-			return
-		}
+	// Creating pubsub
+	// every peer has its own PubSub
+	c.pubsub, err = applyPubSub(h)
+	if err != nil {
+		fmt.Printf("Error : %v\n", err)
+		return
 	}
 
 	// Registering to the topic
-	topic := "TLC"
-
-	for i := 0; i < len(pubsubs); i++ {
-		// Creating a subscription and subscribing to the topic
-		var subscription *pubsub.Subscription
-		subscription, err = pubsubs[i].Subscribe(topic)
-		if err != nil {
-			fmt.Printf("Error : %v\n", err)
-			return
-		}
-
-		// TODO: this function must not be here!
-		// Blocking function for consuming newly received messages
-		go func() {
-			for {
-				// We can access message here
-				msg, _ := subscription.Next(context.Background())
-				fmt.Printf("I was waiting for the message : %s\n", msg.Data)
-			}
-		}()
-
+	c.topic = "TLC"
+	// Creating a subscription and subscribing to the topic
+	c.subscription, err = c.pubsub.Subscribe(c.topic)
+	if err != nil {
+		fmt.Printf("Error : %v\n", err)
+		return
 	}
+
 }
 
 // createHost creates a peer with some defaults options and a signing identity
