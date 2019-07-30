@@ -1,0 +1,16 @@
+syntax = "proto2";
+package transport;
+
+enum Msg_type {
+    Raw = 0;
+}
+
+message Message{
+
+
+    required Msg_type Msg_type = 1;
+    required int32 source = 2;
+    required int32 step = 3;
+    repeated Message history = 4;
+
+}
