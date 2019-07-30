@@ -27,7 +27,7 @@ func setup(n int) []*model.Node {
 			Threshold: n/2 + 1,
 			Acks:      0,
 			Comm:      comm,
-			History:   make([]model.Message, 0)}
+			History:   make([]*model.Message, 0)}
 	}
 	return nodes
 }
@@ -54,7 +54,7 @@ func startTest(nodes []*model.Node, stop int) {
 
 func logOutput(t *testing.T, nodes []*model.Node) {
 	for i := range nodes {
-		t.Logf("nodes: %d , TimeStep : %d", i, nodes[i].TimeStep)
+		t.Logf("nodes: %d , TimeStep : %d , %v", i, nodes[i].TimeStep, *(nodes[i].History[1]))
 	}
 }
 

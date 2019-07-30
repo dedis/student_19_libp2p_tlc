@@ -7,13 +7,13 @@ func (node *Node) Advance(step int) {
 	node.TimeStep = step
 	node.Acks = 0
 
-	fmt.Printf("node %d , Broadcast in timeStep %d\n", node.Id, node.TimeStep)
+	fmt.Printf("node %d , Broadcast in timeStep %d,%v\n", node.Id, node.TimeStep, node.History)
 	node.Comm.Broadcast(node.makeMsg(node.Id, step, node.History))
 
 }
 
 // makeMsg makes a new message to be sent to other nodes.
-func (node *Node) makeMsg(source int, step int, history []Message) *Message {
+func (node *Node) makeMsg(source int, step int, history []*Message) *Message {
 	var msg Message
 	msg.Source = source
 	msg.MsgType = Raw
@@ -46,7 +46,7 @@ func (node *Node) WaitForMsg(stop int) {
 			node.Acks += 1
 			if node.Acks >= node.Threshold {
 				// Log the message in history
-				node.History = append(node.History, *msg)
+				node.History = append(node.History, msg)
 				// Advance to next time step
 				node.Advance(node.TimeStep + 1)
 			}

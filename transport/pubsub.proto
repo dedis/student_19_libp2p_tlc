@@ -5,12 +5,12 @@ enum Msg_type {
     Raw = 0;
 }
 
-message Message{
+message PbMessage{
 
 
     required Msg_type Msg_type = 1;
-    required int32 source = 2;
-    required int32 step = 3;
-    repeated Message history = 4;
+    required int64 source = 2;
+    required int64 step = 3;
+    repeated PbMessage history = 4;
 
 }

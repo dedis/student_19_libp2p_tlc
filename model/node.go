@@ -6,7 +6,7 @@ type Node struct {
 	Threshold int                    // Threshold on number of messages
 	Acks      int                    // Number of acknowledges
 	Comm      CommunicationInterface // interface for communicating with other nodes
-	History   []Message              // History of received messages by a node
+	History   []*Message             // History of received messages by a node
 
 }
 

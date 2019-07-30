@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/rand"
 	"fmt"
+	"github.com/gogo/protobuf/proto"
 	"strings"
 
 	"github.com/dedis/student_19_libp2p_tlc/model"
@@ -24,8 +25,13 @@ type libp2pPubSub struct {
 
 func (c *libp2pPubSub) Broadcast(msg *model.Message) {
 	// Broadcasting to a topic in PubSub
-	// TODO: I have to use Protobuf here for sending messages
-	err := c.pubsub.Publish(c.topic, []byte("a message from friend"))
+	//err := c.pubsub.Publish(c.topic, []byte("a message from friend"))
+	msgBytes, err := proto.Marshal(convertModelMessage(msg))
+	if err != nil {
+		fmt.Printf("Error : %v\n", err)
+		return
+	}
+	err = c.pubsub.Publish(c.topic, msgBytes)
 	if err != nil {
 		fmt.Printf("Error : %v\n", err)
 		return
@@ -41,7 +47,14 @@ func (c *libp2pPubSub) Receive() *model.Message {
 	// We can access message here, but we need subscription. Then we can start processing the received message
 	msg, _ := c.subscription.Next(context.Background())
 	fmt.Printf("I was waiting for the message : %s\n", msg.Data)
-
+	msgBytes := msg.Data
+	var pbMessage *PbMessage
+	err := proto.Unmarshal(msgBytes, pbMessage)
+	if err != nil {
+		fmt.Printf("Error : %v\n", err)
+		return nil
+	}
+	return convertPbMessage(pbMessage)
 }
 
 // createHost creates a peer on localhost and configures it to use libp2p.
@@ -132,4 +145,43 @@ func applyPubSub(h host.Host) (*pubsub.PubSub, error) {
 	}
 
 	return pubsub.NewGossipSub(context.Background(), h, optsPS...)
+}
+
+// convertModelMessage is for converting message defined in model to message used by protobuf
+func convertModelMessage(msg *model.Message) (message *PbMessage) {
+	source := int64(msg.Source)
+	step := int64(msg.Step)
+
+	msgType := MsgType(int(msg.MsgType))
+
+	history := make([]*PbMessage, 0)
+
+	for _, hist := range msg.History {
+		history = append(history, convertModelMessage(hist))
+	}
+
+	message = &PbMessage{
+		Source:  &source,
+		Step:    &step,
+		MsgType: &msgType,
+		History: history,
+	}
+	return
+}
+
+// convertPbMessage is for converting protobuf message to message used in model
+func convertPbMessage(msg *PbMessage) (message *model.Message) {
+	history := make([]*model.Message, 0)
+
+	for _, hist := range msg.History {
+		history = append(history, convertPbMessage(hist))
+	}
+
+	message = &model.Message{
+		Source:  int(msg.GetSource()),
+		Step:    int(msg.GetStep()),
+		MsgType: model.MsgType(int(msg.GetMsgType())),
+		History: history,
+	}
+	return
 }
