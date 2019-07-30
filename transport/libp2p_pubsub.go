@@ -12,8 +12,8 @@ import (
 
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/libp2p/go-libp2p"
+	core "github.com/libp2p/go-libp2p-core"
 	"github.com/libp2p/go-libp2p-core/crypto"
-	host "github.com/libp2p/go-libp2p-host"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 )
 
@@ -39,7 +39,7 @@ func (c *libp2pPubSub) Broadcast(msg *model.Message) {
 }
 
 func (c *libp2pPubSub) Send(msg *model.Message, n *model.Node) {
-
+	// TODO: Implement direct messages by using streams(?) or something
 }
 
 func (c *libp2pPubSub) Receive() *model.Message {
@@ -58,7 +58,7 @@ func (c *libp2pPubSub) Receive() *model.Message {
 }
 
 // createHost creates a peer on localhost and configures it to use libp2p.
-func (c *libp2pPubSub) createHost(n int, nodeId int, port int) *host.Host {
+func (c *libp2pPubSub) createHost(n int, nodeId int, port int) *core.Host {
 	//c.hosts = make([]host.Host, 0)
 	//var err error
 
@@ -85,7 +85,7 @@ func (c *libp2pPubSub) createHost(n int, nodeId int, port int) *host.Host {
 }
 
 // initializePubSub creates a PubSub for the peer and also subscribes to a topic
-func (c *libp2pPubSub) initializePubSub(h host.Host) {
+func (c *libp2pPubSub) initializePubSub(h core.Host) {
 	var err error
 	// Creating pubsub
 	// every peer has its own PubSub
@@ -107,7 +107,7 @@ func (c *libp2pPubSub) initializePubSub(h host.Host) {
 }
 
 // createHost creates a peer with some defaults options and a signing identity
-func createHost(port int) (host.Host, error) {
+func createHost(port int) (core.Host, error) {
 	prvKey, _ := ecdsa.GenerateKey(btcec.S256(), rand.Reader)
 	sk := (*crypto.Secp256k1PrivateKey)(prvKey)
 
@@ -128,7 +128,7 @@ func createHost(port int) (host.Host, error) {
 	return h, nil
 }
 
-func getLocalhostAddress(h host.Host) string {
+func getLocalhostAddress(h core.Host) string {
 	for _, addr := range h.Addrs() {
 		if strings.Contains(addr.String(), "127.0.0.1") {
 			return addr.String() + "/p2p/" + h.ID().Pretty()
@@ -139,7 +139,7 @@ func getLocalhostAddress(h host.Host) string {
 }
 
 // applyPubSub creates a new GossipSub with message signing
-func applyPubSub(h host.Host) (*pubsub.PubSub, error) {
+func applyPubSub(h core.Host) (*pubsub.PubSub, error) {
 	optsPS := []pubsub.Option{
 		pubsub.WithMessageSigning(true),
 	}
