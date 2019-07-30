@@ -1,4 +1,4 @@
-package transport
+package channel
 
 import (
 	"github.com/dedis/student_19_libp2p_tlc/model"

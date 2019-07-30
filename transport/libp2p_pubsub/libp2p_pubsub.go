@@ -1,4 +1,4 @@
-package transport
+package libp2p_pubsub
 
 import (
 	"context"
@@ -6,6 +6,8 @@ import (
 	"crypto/rand"
 	"fmt"
 	"github.com/gogo/protobuf/proto"
+	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/multiformats/go-multiaddr"
 	"strings"
 
 	"github.com/dedis/student_19_libp2p_tlc/model"
@@ -26,11 +28,15 @@ type libp2pPubSub struct {
 func (c *libp2pPubSub) Broadcast(msg *model.Message) {
 	// Broadcasting to a topic in PubSub
 	//err := c.pubsub.Publish(c.topic, []byte("a message from friend"))
+	fmt.Printf("sending this message as struct: %v\n", msg)
+	ms := convertModelMessage(msg)
+	fmt.Printf("sending this message as protobuf: %v\n", ms)
 	msgBytes, err := proto.Marshal(convertModelMessage(msg))
 	if err != nil {
 		fmt.Printf("Error : %v\n", err)
 		return
 	}
+	fmt.Printf("sending this message as bytes: %s\n", msgBytes)
 	err = c.pubsub.Publish(c.topic, msgBytes)
 	if err != nil {
 		fmt.Printf("Error : %v\n", err)
@@ -57,8 +63,8 @@ func (c *libp2pPubSub) Receive() *model.Message {
 	return convertPbMessage(pbMessage)
 }
 
-// createHost creates a peer on localhost and configures it to use libp2p.
-func (c *libp2pPubSub) createHost(n int, nodeId int, port int) *core.Host {
+// createPeer creates a peer on localhost and configures it to use libp2p.
+func (c *libp2pPubSub) createPeer(nodeId int, port int) *core.Host {
 	//c.hosts = make([]host.Host, 0)
 	//var err error
 
@@ -106,7 +112,7 @@ func (c *libp2pPubSub) initializePubSub(h core.Host) {
 
 }
 
-// createHost creates a peer with some defaults options and a signing identity
+// createHost creates a host with some defaults options and a signing identity
 func createHost(port int) (core.Host, error) {
 	prvKey, _ := ecdsa.GenerateKey(btcec.S256(), rand.Reader)
 	sk := (*crypto.Secp256k1PrivateKey)(prvKey)
@@ -145,6 +151,25 @@ func applyPubSub(h core.Host) (*pubsub.PubSub, error) {
 	}
 
 	return pubsub.NewGossipSub(context.Background(), h, optsPS...)
+}
+
+func connectHostToPeer(h core.Host, connectToAddress string) {
+	multiAddr, err := multiaddr.NewMultiaddr(connectToAddress)
+	if err != nil {
+		fmt.Printf("Error encountered: %v\n", err)
+		return
+	}
+
+	pInfo, err := peer.AddrInfoFromP2pAddr(multiAddr)
+	if err != nil {
+		fmt.Printf("Error encountered: %v\n", err)
+		return
+	}
+
+	err = h.Connect(context.Background(), *pInfo)
+	if err != nil {
+		fmt.Printf("Error encountered: %v\n", err)
+	}
 }
 
 // convertModelMessage is for converting message defined in model to message used by protobuf
