@@ -12,6 +12,7 @@ func runNode(node *model.Node, stop int, wg *sync.WaitGroup) {
 	node.WaitForMsg(stop)
 }
 
+// StartTest is used for starting tlc nodes
 func StartTest(nodes []*model.Node, stop int) {
 	wg := &sync.WaitGroup{}
 

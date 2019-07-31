@@ -2,22 +2,20 @@ package libp2p_pubsub
 
 import (
 	"fmt"
+	"github.com/dedis/student_19_libp2p_tlc/transport/test_utils"
 	"testing"
 	"time"
 
 	"github.com/dedis/student_19_libp2p_tlc/model"
-	"github.com/dedis/student_19_libp2p_tlc/transport/test_utils"
-
 	core "github.com/libp2p/go-libp2p-core"
 )
 
-func setupHosts(n int) ([]*model.Node,[]*core.Host) {
+// setupHosts is responsible for creating tlc nodes and also libp2p hosts.
+func setupHosts(n int, initialPort int) ([]*model.Node, []*core.Host) {
 	// nodes used in tlc model
 	nodes := make([]*model.Node, n)
 	// hosts used in libp2p communications
 	hosts := make([]*core.Host, n)
-
-	initialPort := 9000
 
 	for i := range nodes {
 
@@ -26,7 +24,7 @@ func setupHosts(n int) ([]*model.Node,[]*core.Host) {
 		comm = new(libp2pPubSub)
 
 		// creating libp2p hosts
-		host := comm.createPeer(i,initialPort+i)
+		host := comm.createPeer(i, initialPort+i)
 		hosts[i] = host
 		// creating pubsubs
 		comm.initializePubSub(*host)
@@ -39,10 +37,11 @@ func setupHosts(n int) ([]*model.Node,[]*core.Host) {
 			Comm:      comm,
 			History:   make([]*model.Message, 0)}
 	}
-	return nodes,hosts
+	return nodes, hosts
 }
 
-func setupNetworkTopology(hosts []*core.Host){
+// setupNetworkTopology sets up a simple network topology for test.
+func setupNetworkTopology(hosts []*core.Host) {
 
 	// Connect hosts to each other in a topology
 	// host0 ---- host1 ---- host2 ----- host3 ----- host4
@@ -61,14 +60,12 @@ func setupNetworkTopology(hosts []*core.Host){
 
 }
 
-func TestPubSub(t *testing.T){
-	// Create hosts in libp2p
-	n := 5
-	nodes, hosts := setupHosts(n)
+func firstTest(t *testing.T, n int, initialPort int) {
+	nodes, hosts := setupHosts(n, initialPort)
 
-	defer func(){
+	defer func() {
 		fmt.Println("Closing hosts")
-		for _, h := range hosts{
+		for _, h := range hosts {
 			_ = (*h).Close()
 		}
 	}()
@@ -76,7 +73,12 @@ func TestPubSub(t *testing.T){
 	setupNetworkTopology(hosts)
 
 	// PubSub is ready and we can start our algorithm
-	test_utils.StartTest(nodes,10)
-	test_utils.LogOutput(t,nodes)
+	test_utils.StartTest(nodes, 10)
+	test_utils.LogOutput(t, nodes)
+}
+
+func TestPubSub(t *testing.T) {
+	// Create hosts in libp2p
+	firstTest(t, 5, 9000)
 
 }

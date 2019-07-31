@@ -25,18 +25,15 @@ type libp2pPubSub struct {
 	topic        string               // PubSub topic
 }
 
+// Broadcast Uses PubSub publish to broadcast messages to other peers
 func (c *libp2pPubSub) Broadcast(msg *model.Message) {
 	// Broadcasting to a topic in PubSub
-	//err := c.pubsub.Publish(c.topic, []byte("a message from friend"))
 	fmt.Printf("sending this message as struct: %v\n", msg)
-	//ms := convertModelMessage(msg)
-	//fmt.Printf("sending this message as protobuf: %v,%v\n", ms,ms.History)
 	msgBytes, err := proto.Marshal(convertModelMessage(msg))
 	if err != nil {
 		fmt.Printf("Error : %v\n", err)
 		return
 	}
-	//fmt.Printf("sending this message as bytes: %s\n", msgBytes)
 	err = c.pubsub.Publish(c.topic, msgBytes)
 	if err != nil {
 		fmt.Printf("Error : %v\n", err)
@@ -48,11 +45,11 @@ func (c *libp2pPubSub) Send(msg *model.Message, n *model.Node) {
 	// TODO: Implement direct messages by using streams(?) or something
 }
 
+// Receive gets message from PubSub in a blocking way
 func (c *libp2pPubSub) Receive() *model.Message {
 	// Blocking function for consuming newly received messages
-	// We can access message here, but we need subscription. Then we can start processing the received message
+	// We can access message here
 	msg, _ := c.subscription.Next(context.Background())
-	//fmt.Printf("I was waiting for the message : %s\n", msg.Data)
 	msgBytes := msg.Data
 	var pbMessage PbMessage
 	err := proto.Unmarshal(msgBytes, &pbMessage)
@@ -61,19 +58,12 @@ func (c *libp2pPubSub) Receive() *model.Message {
 		return nil
 	}
 	modelMsg := convertPbMessage(&pbMessage)
-	if len(modelMsg.History) > 8 {
-		mmm := *(modelMsg.History[len(modelMsg.History)-1])
-		fmt.Println(mmm)
-	}
 	return modelMsg
 }
 
 // createPeer creates a peer on localhost and configures it to use libp2p.
 func (c *libp2pPubSub) createPeer(nodeId int, port int) *core.Host {
-	//c.hosts = make([]host.Host, 0)
-	//var err error
-
-	// Creating nodes
+	// Creating a node
 	h, err := createHost(port)
 	if err != nil {
 		panic(err)
@@ -83,16 +73,6 @@ func (c *libp2pPubSub) createPeer(nodeId int, port int) *core.Host {
 
 	// Returning pointer to the created libp2p host
 	return &h
-	/*
-		// TODO : it is wrong. you are closing it immediately!
-		defer func() {
-			for _, h := range c.hosts {
-				_ = h.Close()
-			}
-		}()
-	*/
-
-	// TODO: I have to connect peers to each other.
 }
 
 // initializePubSub creates a PubSub for the peer and also subscribes to a topic
@@ -117,12 +97,13 @@ func (c *libp2pPubSub) initializePubSub(h core.Host) {
 
 }
 
-// createHost creates a host with some defaults options and a signing identity
+// createHost creates a host with some default options and a signing identity
 func createHost(port int) (core.Host, error) {
+	// Producing pirvate key
 	prvKey, _ := ecdsa.GenerateKey(btcec.S256(), rand.Reader)
 	sk := (*crypto.Secp256k1PrivateKey)(prvKey)
 
-	// starting a peer
+	// Starting a peer with default configs
 	opts := []libp2p.Option{
 		libp2p.ListenAddrStrings(fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", port)),
 		libp2p.Identity(sk),
@@ -139,6 +120,7 @@ func createHost(port int) (core.Host, error) {
 	return h, nil
 }
 
+// getLocalhostAddress is used for getting address of hosts
 func getLocalhostAddress(h core.Host) string {
 	for _, addr := range h.Addrs() {
 		if strings.Contains(addr.String(), "127.0.0.1") {
@@ -158,22 +140,24 @@ func applyPubSub(h core.Host) (*pubsub.PubSub, error) {
 	return pubsub.NewGossipSub(context.Background(), h, optsPS...)
 }
 
+// connectHostToPeer is used for connecting a host to another peer
 func connectHostToPeer(h core.Host, connectToAddress string) {
+	// Creating multi address
 	multiAddr, err := multiaddr.NewMultiaddr(connectToAddress)
 	if err != nil {
-		fmt.Printf("Error encountered: %v\n", err)
+		fmt.Printf("Error : %v\n", err)
 		return
 	}
 
 	pInfo, err := peer.AddrInfoFromP2pAddr(multiAddr)
 	if err != nil {
-		fmt.Printf("Error encountered: %v\n", err)
+		fmt.Printf("Error : %v\n", err)
 		return
 	}
 
 	err = h.Connect(context.Background(), *pInfo)
 	if err != nil {
-		fmt.Printf("Error encountered: %v\n", err)
+		fmt.Printf("Error : %v\n", err)
 	}
 }
 
