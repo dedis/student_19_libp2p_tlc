@@ -5,7 +5,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/rand"
 	"fmt"
-	"github.com/gogo/protobuf/proto"
+	"github.com/golang/protobuf/proto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"strings"
@@ -29,14 +29,14 @@ func (c *libp2pPubSub) Broadcast(msg *model.Message) {
 	// Broadcasting to a topic in PubSub
 	//err := c.pubsub.Publish(c.topic, []byte("a message from friend"))
 	fmt.Printf("sending this message as struct: %v\n", msg)
-	ms := convertModelMessage(msg)
-	fmt.Printf("sending this message as protobuf: %v\n", ms)
+	//ms := convertModelMessage(msg)
+	//fmt.Printf("sending this message as protobuf: %v,%v\n", ms,ms.History)
 	msgBytes, err := proto.Marshal(convertModelMessage(msg))
 	if err != nil {
 		fmt.Printf("Error : %v\n", err)
 		return
 	}
-	fmt.Printf("sending this message as bytes: %s\n", msgBytes)
+	//fmt.Printf("sending this message as bytes: %s\n", msgBytes)
 	err = c.pubsub.Publish(c.topic, msgBytes)
 	if err != nil {
 		fmt.Printf("Error : %v\n", err)
@@ -52,15 +52,20 @@ func (c *libp2pPubSub) Receive() *model.Message {
 	// Blocking function for consuming newly received messages
 	// We can access message here, but we need subscription. Then we can start processing the received message
 	msg, _ := c.subscription.Next(context.Background())
-	fmt.Printf("I was waiting for the message : %s\n", msg.Data)
+	//fmt.Printf("I was waiting for the message : %s\n", msg.Data)
 	msgBytes := msg.Data
-	var pbMessage *PbMessage
-	err := proto.Unmarshal(msgBytes, pbMessage)
+	var pbMessage PbMessage
+	err := proto.Unmarshal(msgBytes, &pbMessage)
 	if err != nil {
 		fmt.Printf("Error : %v\n", err)
 		return nil
 	}
-	return convertPbMessage(pbMessage)
+	modelMsg := convertPbMessage(&pbMessage)
+	if len(modelMsg.History) > 8 {
+		mmm := *(modelMsg.History[len(modelMsg.History)-1])
+		fmt.Println(mmm)
+	}
+	return modelMsg
 }
 
 // createPeer creates a peer on localhost and configures it to use libp2p.
