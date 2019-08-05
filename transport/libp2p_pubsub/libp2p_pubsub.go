@@ -18,6 +18,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/crypto"
 	pubsub "github.com/libp2p/go-libp2p-pubsub"
 	quic "github.com/libp2p/go-libp2p-quic-transport"
+	ws "github.com/libp2p/go-ws-transport"
 )
 
 type libp2pPubSub struct {
@@ -136,6 +137,26 @@ func createHostQUIC(port int) (core.Host, error) {
 		libp2p.ListenAddrStrings(fmt.Sprintf("/ip4/0.0.0.0/udp/%d/quic", port)),
 		libp2p.Transport(quicTransport),
 		libp2p.Identity(priv),
+		libp2p.DefaultMuxers,
+		libp2p.DefaultSecurity,
+	}
+
+	h, err := libp2p.New(context.Background(), opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	return h, nil
+}
+
+// createHostWebSocket creates a host with WebSocket as transport layer implementation
+func createHostWebSocket(port int) (core.Host, error) {
+
+	// Starting a peer with QUIC transport
+	opts := []libp2p.Option{
+		libp2p.ListenAddrStrings(fmt.Sprintf("/ip4/0.0.0.0/udp/%d/quic", port)),
+		libp2p.ListenAddrStrings(fmt.Sprintf("/ip4/0.0.0.0/tcp/%d/ws", port)),
+		libp2p.Transport(ws.New),
 		libp2p.DefaultMuxers,
 		libp2p.DefaultSecurity,
 	}
