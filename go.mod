@@ -10,5 +10,6 @@ require (
 	github.com/libp2p/go-libp2p-core v0.0.6
 	github.com/libp2p/go-libp2p-host v0.1.0
 	github.com/libp2p/go-libp2p-pubsub v0.1.0
+	github.com/libp2p/go-libp2p-quic-transport v0.1.1
 	github.com/multiformats/go-multiaddr v0.0.4
 )
