@@ -9,6 +9,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
 	"strings"
+	"time"
 
 	"github.com/dedis/student_19_libp2p_tlc/model"
 
@@ -51,16 +52,32 @@ func (c *libp2pPubSub) Send(msg *model.Message, n *model.Node) {
 func (c *libp2pPubSub) Receive() *model.Message {
 	// Blocking function for consuming newly received messages
 	// We can access message here
-	msg, _ := c.subscription.Next(context.Background())
+	msg, err := c.subscription.Next(context.Background())
+	// handling canceled subscriptions
+	if err != nil {
+		return nil
+	}
 	msgBytes := msg.Data
 	var pbMessage PbMessage
-	err := proto.Unmarshal(msgBytes, &pbMessage)
+	err = proto.Unmarshal(msgBytes, &pbMessage)
 	if err != nil {
 		fmt.Printf("Error : %v\n", err)
 		return nil
 	}
 	modelMsg := convertPbMessage(&pbMessage)
 	return modelMsg
+}
+
+// Cancel unsubscribes a node from pubsub
+func (c *libp2pPubSub) Cancel(cancelTime int, reconnectTime int) {
+	go func() {
+		time.Sleep(time.Duration(cancelTime) * time.Millisecond)
+		fmt.Println("	CANCELING	")
+		c.subscription.Cancel()
+		time.Sleep(time.Duration(reconnectTime) * time.Millisecond)
+		fmt.Println("	RESUBBING	")
+		c.subscription, _ = c.pubsub.Subscribe(c.topic)
+	}()
 }
 
 // createPeer creates a peer on localhost and configures it to use libp2p.
@@ -101,7 +118,7 @@ func (c *libp2pPubSub) initializePubSub(h core.Host) {
 
 // createHost creates a host with some default options and a signing identity
 func createHost(port int) (core.Host, error) {
-	// Producing pirvate key
+	// Producing private key
 	prvKey, _ := ecdsa.GenerateKey(btcec.S256(), rand.Reader)
 	sk := (*crypto.Secp256k1PrivateKey)(prvKey)
 
@@ -124,7 +141,7 @@ func createHost(port int) (core.Host, error) {
 
 // createHostQUIC creates a host with QUIC as transport layer implementation
 func createHostQUIC(port int) (core.Host, error) {
-	// Producing pirvate key
+	// Producing private key
 	priv, _, err := crypto.GenerateKeyPairWithReader(crypto.RSA, 2048, rand.Reader)
 
 	quicTransport, err := quic.NewTransport(priv)

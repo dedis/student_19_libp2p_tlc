@@ -28,6 +28,10 @@ func setupHosts(n int, initialPort int) ([]*model.Node, []*core.Host) {
 		hosts[i] = host
 		// creating pubsubs
 		comm.initializePubSub(*host)
+		if i == (len(nodes) - 1) {
+			comm.Cancel(2050, 2060)
+
+		}
 
 		nodes[i] = &model.Node{
 			Id:        i,

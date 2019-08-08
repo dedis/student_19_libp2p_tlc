@@ -28,6 +28,9 @@ func (node *Node) WaitForMsg(stop int) {
 		// For now we assume that the underlying receive function is blocking
 		// TODO Implement receive in a blocking way or introduce 2 kinds of receives
 		msg := node.Comm.Receive()
+		if msg == nil {
+			continue
+		}
 		fmt.Printf("node %d,%d\n", node.Id, msg.Step)
 
 		if node.TimeStep == stop {
