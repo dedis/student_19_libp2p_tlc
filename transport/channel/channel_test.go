@@ -10,10 +10,10 @@ import (
 func setup(n int) []*model.Node {
 	nodes := make([]*model.Node, n)
 
-	channelsMap := make(map[int]*chan *model.Message)
+	channelsMap := make(map[int]*chan model.Message)
 
 	for i := range nodes {
-		c := make(chan *model.Message, n)
+		c := make(chan model.Message, n*20)
 		channelsMap[i] = &c
 	}
 
@@ -22,12 +22,15 @@ func setup(n int) []*model.Node {
 		var comm model.CommunicationInterface
 		comm = &Channel{&channelsMap, channelsMap[i]}
 		nodes[i] = &model.Node{
-			Id:        i,
-			TimeStep:  0,
-			Threshold: n/2 + 1,
-			Acks:      0,
-			Comm:      comm,
-			History:   make([]*model.Message, 0)}
+			Id:           i,
+			TimeStep:     0,
+			ThresholdWit: n/2 + 1,
+			ThresholdAck: n/2 + 1,
+			//ThresholdAck: 2,
+			//ThresholdWit: 2,
+			Acks:    0,
+			Comm:    comm,
+			History: make([]model.Message, 0)}
 	}
 	return nodes
 }

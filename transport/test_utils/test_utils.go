@@ -30,6 +30,6 @@ func StartTest(nodes []*model.Node, stop int) {
 
 func LogOutput(t *testing.T, nodes []*model.Node) {
 	for i := range nodes {
-		t.Logf("nodes: %d , TimeStep : %d , %v", i, nodes[i].TimeStep, *(nodes[i].History[1]))
+		t.Logf("nodes: %d , TimeStep : %d , %v", i, nodes[i].TimeStep, nodes[i].History[1])
 	}
 }

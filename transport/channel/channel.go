@@ -5,12 +5,12 @@ import (
 )
 
 type Channel struct {
-	outgoingChannels *map[int]*chan *model.Message
-	incomingChannel  *chan *model.Message
+	outgoingChannels *map[int]*chan model.Message
+	incomingChannel  *chan model.Message
 }
 
 // Send is used for sending a message i
-func (c *Channel) Broadcast(msg *model.Message) {
+func (c *Channel) Broadcast(msg model.Message) {
 	go func() {
 		for _, peerChannel := range *c.outgoingChannels {
 			// TODO handle when channel is full
@@ -24,13 +24,13 @@ func (c *Channel) Broadcast(msg *model.Message) {
 	}()
 }
 
-func (c *Channel) Send(msg *model.Message, n *model.Node) {
+func (c *Channel) Send(msg model.Message, id int) {
 	go func() {
-		*(*c.outgoingChannels)[n.Id] <- msg
+		*((*c.outgoingChannels)[id]) <- msg
 	}()
 }
 
-func (c *Channel) Receive() *model.Message {
+func (c *Channel) Receive() model.Message {
 	msg := <-*(c.incomingChannel)
 	return msg
 	//return <-*c.incomingChannel
