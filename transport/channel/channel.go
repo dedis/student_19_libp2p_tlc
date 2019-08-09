@@ -30,8 +30,8 @@ func (c *Channel) Send(msg model.Message, id int) {
 	}()
 }
 
-func (c *Channel) Receive() model.Message {
+func (c *Channel) Receive() *model.Message {
 	msg := <-*(c.incomingChannel)
-	return msg
+	return &msg
 	//return <-*c.incomingChannel
 }

@@ -16,5 +16,5 @@ type Node struct {
 type CommunicationInterface interface {
 	Send(msg Message, id int) // Send a message to a specific node
 	Broadcast(msg Message)    // Broadcast messages to other nodes
-	Receive() Message         // Blocking(?) receive
+	Receive() *Message        // Blocking(?) receive
 }

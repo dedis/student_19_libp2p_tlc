@@ -29,9 +29,9 @@ type libp2pPubSub struct {
 }
 
 // Broadcast Uses PubSub publish to broadcast messages to other peers
-func (c *libp2pPubSub) Broadcast(msg *model.Message) {
+func (c *libp2pPubSub) Broadcast(msg model.Message) {
 	// Broadcasting to a topic in PubSub
-	fmt.Printf("sending this message as struct: %v\n", msg)
+	//fmt.Printf("sending this message as struct: %v\n", msg)
 	msgBytes, err := proto.Marshal(convertModelMessage(msg))
 	if err != nil {
 		fmt.Printf("Error : %v\n", err)
@@ -44,8 +44,9 @@ func (c *libp2pPubSub) Broadcast(msg *model.Message) {
 	}
 }
 
-func (c *libp2pPubSub) Send(msg *model.Message, n *model.Node) {
-	// TODO: Implement direct messages by using streams(?) or something
+func (c *libp2pPubSub) Send(msg model.Message, id int) {
+	// In libp2p implementation, we also broadcast instead of sending directy. So Ack will be broadcast in this case.
+	c.Broadcast(msg)
 }
 
 // Receive gets message from PubSub in a blocking way
@@ -65,7 +66,7 @@ func (c *libp2pPubSub) Receive() *model.Message {
 		return nil
 	}
 	modelMsg := convertPbMessage(&pbMessage)
-	return modelMsg
+	return &modelMsg
 }
 
 // Cancel unsubscribes a node from pubsub
@@ -228,7 +229,7 @@ func connectHostToPeer(h core.Host, connectToAddress string) {
 }
 
 // convertModelMessage is for converting message defined in model to message used by protobuf
-func convertModelMessage(msg *model.Message) (message *PbMessage) {
+func convertModelMessage(msg model.Message) (message *PbMessage) {
 	source := int64(msg.Source)
 	step := int64(msg.Step)
 
@@ -250,14 +251,14 @@ func convertModelMessage(msg *model.Message) (message *PbMessage) {
 }
 
 // convertPbMessage is for converting protobuf message to message used in model
-func convertPbMessage(msg *PbMessage) (message *model.Message) {
-	history := make([]*model.Message, 0)
+func convertPbMessage(msg *PbMessage) (message model.Message) {
+	history := make([]model.Message, 0)
 
 	for _, hist := range msg.History {
 		history = append(history, convertPbMessage(hist))
 	}
 
-	message = &model.Message{
+	message = model.Message{
 		Source:  int(msg.GetSource()),
 		Step:    int(msg.GetStep()),
 		MsgType: model.MsgType(int(msg.GetMsgType())),

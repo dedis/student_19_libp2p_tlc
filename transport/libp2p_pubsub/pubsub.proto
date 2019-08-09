@@ -3,6 +3,8 @@ package libp2p_pubsub;
 
 enum Msg_type {
     Raw = 0;
+    Ack = 1;
+    Wit = 2;
 }
 
 message PbMessage{

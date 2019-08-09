@@ -25,9 +25,9 @@ func (node *Node) WaitForMsg(stop int) {
 		// For now we assume that the underlying receive function is blocking
 		// TODO Implement receive in a blocking way or introduce 2 kinds of receives
 		msg := node.Comm.Receive()
-		//if msg == nil {
-		//	continue
-		//}
+		if msg == nil {
+			continue
+		}
 		fmt.Printf("node %d in step %d ;Received MSG with step %d type %d source: %d\n", node.Id, node.TimeStep, msg.Step, msg.MsgType, msg.Source)
 
 		if node.TimeStep == stop {
@@ -53,7 +53,7 @@ func (node *Node) WaitForMsg(stop int) {
 				node.Wits += 1
 				if node.Wits >= node.ThresholdWit {
 					// Log the message in history
-					node.History = append(node.History, msg)
+					node.History = append(node.History, *msg)
 					// Advance to next time step
 					node.Advance(node.TimeStep + 1)
 				}
@@ -67,7 +67,7 @@ func (node *Node) WaitForMsg(stop int) {
 			node.Acks += 1
 			if node.Acks >= node.ThresholdAck {
 				msg.MsgType = Wit
-				node.Comm.Broadcast(msg)
+				node.Comm.Broadcast(*msg)
 			}
 
 		case Raw:
@@ -77,10 +77,10 @@ func (node *Node) WaitForMsg(stop int) {
 				// Advance virally
 				node.Advance(msg.Step)
 				msg.MsgType = Ack
-				node.Comm.Send(msg, msg.Source)
+				node.Comm.Send(*msg, msg.Source)
 			} else if msg.Step == node.TimeStep {
 				msg.MsgType = Ack
-				node.Comm.Send(msg, msg.Source)
+				node.Comm.Send(*msg, msg.Source)
 			}
 
 		}
