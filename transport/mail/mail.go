@@ -4,11 +4,14 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/dedis/student_19_libp2p_tlc/model"
+	"github.com/dedis/student_19_libp2p_tlc/transport/libp2p_pubsub"
 	"github.com/emersion/go-imap"
 	"github.com/emersion/go-imap/client"
+	"github.com/golang/protobuf/proto"
 	"gopkg.in/gomail.v2"
 	"io/ioutil"
-	net_mail "net/mail"
+	netmail "net/mail"
+	"time"
 )
 
 const mailSendServer = "mail.localhost.localdomain"
@@ -17,21 +20,44 @@ const mailReceiveServer = "localhost.localdomain"
 type mail struct {
 	username    string
 	password    string
+	recentIndex uint32
 	addressBook []string
 }
 
-// Broadcast Uses PubSub publish to broadcast messages to other peers
+// Broadcast sends mail to all addresses inside AddressBook
 func (m *mail) Broadcast(msg model.Message) {
-
+	// Sending mail to all other nodes
+	// TODO separate proto related files and functions into an independent package
+	msgBytes, err := proto.Marshal(libp2p_pubsub.ConvertModelMessage(msg))
+	if err != nil {
+		fmt.Printf("Error : %v\n", err)
+		return
+	}
+	SendMail(m.username, m.addressBook, "", msgBytes, m.password)
 }
 
+// Send sends a message to a node with specific id
 func (m *mail) Send(msg model.Message, id int) {
-
+	// Using Broadcast
+	m.Broadcast(msg)
 }
 
-// Receive gets message from PubSub in a blocking way
-func (c *mail) Receive() *model.Message {
-	return nil
+// Receive gets new mail from inbox
+func (m *mail) Receive() *model.Message {
+	msgBytes := GetMail(m.username, m.password, m.recentIndex)
+	if msgBytes == nil {
+		time.Sleep(100 * time.Millisecond)
+		return nil
+	}
+	m.recentIndex += 1
+	var pbMessage libp2p_pubsub.PbMessage
+	err := proto.Unmarshal(msgBytes, &pbMessage)
+	if err != nil {
+		fmt.Printf("Error : %v\n", err)
+		return nil
+	}
+	modelMsg := libp2p_pubsub.ConvertPbMessage(&pbMessage)
+	return &modelMsg
 }
 
 // SendMail sends a mail from a user to several users
@@ -107,7 +133,7 @@ func GetMail(username string, password string, index uint32) []byte {
 		return nil
 	}
 
-	m, err := net_mail.ReadMessage(r)
+	m, err := netmail.ReadMessage(r)
 	if err != nil {
 		fmt.Printf("Error : %v\n", err)
 		return nil

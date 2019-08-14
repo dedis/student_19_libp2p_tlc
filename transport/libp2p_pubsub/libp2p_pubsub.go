@@ -32,7 +32,7 @@ type libp2pPubSub struct {
 func (c *libp2pPubSub) Broadcast(msg model.Message) {
 	// Broadcasting to a topic in PubSub
 	//fmt.Printf("sending this message as struct: %v\n", msg)
-	msgBytes, err := proto.Marshal(convertModelMessage(msg))
+	msgBytes, err := proto.Marshal(ConvertModelMessage(msg))
 	if err != nil {
 		fmt.Printf("Error : %v\n", err)
 		return
@@ -65,7 +65,7 @@ func (c *libp2pPubSub) Receive() *model.Message {
 		fmt.Printf("Error : %v\n", err)
 		return nil
 	}
-	modelMsg := convertPbMessage(&pbMessage)
+	modelMsg := ConvertPbMessage(&pbMessage)
 	return &modelMsg
 }
 
@@ -228,8 +228,8 @@ func connectHostToPeer(h core.Host, connectToAddress string) {
 	}
 }
 
-// convertModelMessage is for converting message defined in model to message used by protobuf
-func convertModelMessage(msg model.Message) (message *PbMessage) {
+// ConvertModelMessage is for converting message defined in model to message used by protobuf
+func ConvertModelMessage(msg model.Message) (message *PbMessage) {
 	source := int64(msg.Source)
 	step := int64(msg.Step)
 
@@ -238,7 +238,7 @@ func convertModelMessage(msg model.Message) (message *PbMessage) {
 	history := make([]*PbMessage, 0)
 
 	for _, hist := range msg.History {
-		history = append(history, convertModelMessage(hist))
+		history = append(history, ConvertModelMessage(hist))
 	}
 
 	message = &PbMessage{
@@ -250,12 +250,12 @@ func convertModelMessage(msg model.Message) (message *PbMessage) {
 	return
 }
 
-// convertPbMessage is for converting protobuf message to message used in model
-func convertPbMessage(msg *PbMessage) (message model.Message) {
+// ConvertPbMessage is for converting protobuf message to message used in model
+func ConvertPbMessage(msg *PbMessage) (message model.Message) {
 	history := make([]model.Message, 0)
 
 	for _, hist := range msg.History {
-		history = append(history, convertPbMessage(hist))
+		history = append(history, ConvertPbMessage(hist))
 	}
 
 	message = model.Message{
