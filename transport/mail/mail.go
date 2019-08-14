@@ -33,6 +33,7 @@ func (m *mail) Broadcast(msg model.Message) {
 		fmt.Printf("Error : %v\n", err)
 		return
 	}
+	fmt.Println(m.username, msgBytes)
 	SendMail(m.username, m.addressBook, "", msgBytes, m.password)
 }
 
@@ -49,6 +50,7 @@ func (m *mail) Receive() *model.Message {
 		time.Sleep(100 * time.Millisecond)
 		return nil
 	}
+	fmt.Println(m.username, msgBytes)
 	m.recentIndex += 1
 	var pbMessage libp2p_pubsub.PbMessage
 	err := proto.Unmarshal(msgBytes, &pbMessage)
@@ -66,7 +68,8 @@ func SendMail(from string, to []string, subject string, body []byte, password st
 	m.SetHeader("From", from)
 	m.SetHeader("To", to...)
 	m.SetHeader("Subject", subject)
-	m.SetBody("text/html", string(body))
+	m.SetBody("text/plain", string(body))
+	fmt.Println("stringBody", string(body))
 
 	d := gomail.NewDialer(mailSendServer, 25, from, password)
 	// We are using self-signed certificates so we must skip verification
@@ -120,7 +123,7 @@ func GetMail(username string, password string, index uint32) []byte {
 		done <- c.Fetch(seqset, items, messages)
 	}()
 
-	fmt.Println("message:")
+	fmt.Printf("message in mailbox %s with index %d:", username, index)
 	msg := <-messages
 	r := msg.GetBody(section)
 	if r == nil {
@@ -150,6 +153,6 @@ func GetMail(username string, password string, index uint32) []byte {
 		fmt.Printf("Error : %v\n", err)
 		return nil
 	}
-	fmt.Println(string(body))
+	fmt.Println("Body:", string(body))
 	return body
 }
