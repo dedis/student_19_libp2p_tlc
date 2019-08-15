@@ -45,7 +45,7 @@ func (m *mail) Send(msg model.Message, id int) {
 
 // Receive gets new mail from inbox
 func (m *mail) Receive() *model.Message {
-	msgBytes := GetMail(m.username, m.password, m.recentIndex)
+	msgBytes := GetMailSubject(m.username, m.password, m.recentIndex)
 	if msgBytes == nil {
 		time.Sleep(100 * time.Millisecond)
 		return nil
@@ -67,7 +67,7 @@ func SendMail(from string, to []string, subject string, body []byte, password st
 	m := gomail.NewMessage()
 	m.SetHeader("From", from)
 	m.SetHeader("To", to...)
-	m.SetHeader("Subject", subject)
+	m.SetHeader("Subject", string(body))
 	m.SetBody("text/plain", string(body))
 	fmt.Println("stringBody", string(body))
 
@@ -155,4 +155,64 @@ func GetMail(username string, password string, index uint32) []byte {
 	}
 	fmt.Println("Body:", string(body))
 	return body
+}
+
+func GetMailSubject(username string, password string, index uint32) []byte {
+	// Connect to server
+	c, err := client.DialTLS("localhost.localdomain:993", &tls.Config{InsecureSkipVerify: true})
+	if err != nil {
+		fmt.Printf("Error : %v\n", err)
+		return nil
+	}
+	// Don't forget to logout
+	defer c.Logout()
+
+	// Login
+	if err := c.Login(username, password); err != nil {
+		fmt.Printf("Error : %v\n", err)
+		return nil
+	}
+
+	// List mailboxes
+	mailboxes := make(chan *imap.MailboxInfo, 10)
+	done := make(chan error, 1)
+	go func() {
+		done <- c.List("", "*", mailboxes)
+	}()
+
+	if err := <-done; err != nil {
+		fmt.Printf("Error : %v\n", err)
+		return nil
+	}
+
+	// Select INBOX
+	mbox, err := c.Select("INBOX", false)
+	if err != nil {
+		fmt.Printf("Error : %v\n", err)
+		return nil
+	}
+
+	if mbox.Messages == 0 && index > mbox.Messages {
+		fmt.Printf("Error : %v\n", "No message with that index")
+		return nil
+	}
+
+	seqset := new(imap.SeqSet)
+	seqset.AddRange(index, index)
+
+	messages := make(chan *imap.Message, 10)
+	done = make(chan error, 1)
+	go func() {
+		done <- c.Fetch(seqset, []imap.FetchItem{imap.FetchEnvelope}, messages)
+	}()
+
+	msg := <-messages
+	fmt.Println([]byte(msg.Envelope.Subject))
+
+	if err := <-done; err != nil {
+		fmt.Printf("Error : %v\n", err)
+		return nil
+	}
+
+	return []byte(msg.Envelope.Subject)
 }

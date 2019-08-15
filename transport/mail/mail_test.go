@@ -8,6 +8,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"testing"
 	"time"
+	"unicode/utf8"
 )
 
 func TestSendMail(t *testing.T) {
@@ -67,8 +68,16 @@ func TestMailProto(t *testing.T) {
 	usernames := []string{"a@localhost.localdomain", "b@localhost.localdomain", "c@localhost.localdomain", "d@localhost.localdomain", "e@localhost.localdomain"}
 	passwords := []string{"apassword", "bpassword", "cpassword", "dpassword", "epassword"}
 	fmt.Println("BYTES", msgBytes)
+	fmt.Println(utf8.Valid(msgBytes))
 	SendMail(usernames[0], usernames, "", msgBytes, passwords[0])
 	time.Sleep(time.Second)
-	data := GetMail(usernames[2], passwords[2], 1)
+	//data := GetMail(usernames[2], passwords[2], 1)
+	data := GetMailSubject(usernames[2], passwords[2], 1)
 	fmt.Println("BYTES", data)
+	var pbMessage libp2p_pubsub.PbMessage
+	err = proto.Unmarshal(data, &pbMessage)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(libp2p_pubsub.ConvertPbMessage(&pbMessage))
 }
