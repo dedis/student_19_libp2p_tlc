@@ -47,10 +47,10 @@ func (m *mail) Send(msg model.Message, id int) {
 func (m *mail) Receive() *model.Message {
 	msgBytes := GetMailSubject(m.username, m.password, m.recentIndex)
 	if msgBytes == nil {
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(2 * time.Second)
 		return nil
 	}
-	fmt.Println(m.username, msgBytes)
+	fmt.Println("received :", m.username, msgBytes)
 	m.recentIndex += 1
 	var pbMessage libp2p_pubsub.PbMessage
 	err := proto.Unmarshal(msgBytes, &pbMessage)
@@ -69,7 +69,6 @@ func SendMail(from string, to []string, subject string, body []byte, password st
 	m.SetHeader("To", to...)
 	m.SetHeader("Subject", string(body))
 	m.SetBody("text/plain", string(body))
-	fmt.Println("stringBody", string(body))
 
 	d := gomail.NewDialer(mailSendServer, 25, from, password)
 	// We are using self-signed certificates so we must skip verification
@@ -105,7 +104,7 @@ func GetMail(username string, password string, index uint32) []byte {
 	}
 
 	// Get the message at specified index
-	if mbox.Messages == 0 && index > mbox.Messages {
+	if mbox.Messages == 0 || index > mbox.Messages {
 		fmt.Printf("Error : %v\n", "No message with that index")
 		return nil
 	}
@@ -164,6 +163,7 @@ func GetMailSubject(username string, password string, index uint32) []byte {
 		fmt.Printf("Error : %v\n", err)
 		return nil
 	}
+	// TODO Don't logout here and login again. Do it only once
 	// Don't forget to logout
 	defer c.Logout()
 
@@ -192,7 +192,7 @@ func GetMailSubject(username string, password string, index uint32) []byte {
 		return nil
 	}
 
-	if mbox.Messages == 0 && index > mbox.Messages {
+	if mbox.Messages == 0 || index > mbox.Messages {
 		fmt.Printf("Error : %v\n", "No message with that index")
 		return nil
 	}
@@ -206,13 +206,11 @@ func GetMailSubject(username string, password string, index uint32) []byte {
 		done <- c.Fetch(seqset, []imap.FetchItem{imap.FetchEnvelope}, messages)
 	}()
 
-	msg := <-messages
-	fmt.Println([]byte(msg.Envelope.Subject))
-
 	if err := <-done; err != nil {
 		fmt.Printf("Error : %v\n", err)
 		return nil
 	}
-
+	msg := <-messages
+	fmt.Println([]byte(msg.Envelope.Subject))
 	return []byte(msg.Envelope.Subject)
 }

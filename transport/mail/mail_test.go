@@ -54,7 +54,7 @@ func setup(n int) []*model.Node {
 
 func TestMail(t *testing.T) {
 	nodes := setup(3)
-	test_utils.StartTest(nodes, 1)
+	test_utils.StartTest(nodes, 5)
 	test_utils.LogOutput(t, nodes)
 }
 
