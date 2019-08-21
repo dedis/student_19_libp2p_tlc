@@ -13,7 +13,7 @@ func (node *Node) Advance(step int) {
 		Source:  node.Id,
 		MsgType: Raw,
 		Step:    node.TimeStep,
-		History: node.History,
+		History: make([]Message, 0),
 	}
 	node.CurrentMsg = msg
 	node.Comm.Broadcast(msg)
@@ -35,18 +35,22 @@ func (node *Node) WaitForMsg(stop int) {
 		}
 
 		if msg.Step < node.TimeStep {
-			msg.MsgType = Catchup
-			msg.Step = node.TimeStep
-			msg.History = node.History
-			node.Comm.Broadcast(*msg)
+			if msg.MsgType == Raw {
+				msg.MsgType = Catchup
+				msg.Step = node.TimeStep
+				msg.History = node.History
+				node.Comm.Broadcast(*msg)
+			}
 			continue
 		}
 
 		switch msg.MsgType {
 		case Wit:
-			if msg.Step > node.TimeStep { // Node needs to catch up with the message
+			if msg.Step > node.TimeStep+1 {
+				continue
+			} else if msg.Step == node.TimeStep+1 { // Node needs to catch up with the message
 				// Update nodes local history. Append history from message to local history
-				node.History = append(node.History, msg.History[node.TimeStep:]...)
+				node.History = append(node.History, *msg)
 				// Advance virally
 				node.Advance(msg.Step)
 				node.Wits += 1
@@ -72,9 +76,11 @@ func (node *Node) WaitForMsg(stop int) {
 			}
 
 		case Raw:
-			if msg.Step > node.TimeStep { // Node needs to catch up with the message
+			if msg.Step > node.TimeStep+1 {
+				continue
+			} else if msg.Step == node.TimeStep+1 { // Node needs to catch up with the message
 				// Update nodes local history. Append history from message to local history
-				node.History = append(node.History, msg.History[node.TimeStep:]...)
+				node.History = append(node.History, *msg)
 				// Advance virally
 				node.Advance(msg.Step)
 				msg.MsgType = Ack
@@ -86,6 +92,8 @@ func (node *Node) WaitForMsg(stop int) {
 
 		case Catchup:
 			if msg.Source == node.CurrentMsg.Source && msg.Step > node.TimeStep {
+				fmt.Printf("Catchup: node (%d,step %d), msg(source %d ,step %d)\n", node.Id, node.TimeStep, msg.Source, msg.Step)
+				node.History = append(node.History, msg.History[node.TimeStep:]...)
 				node.Advance(msg.Step)
 			}
 		}
