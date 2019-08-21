@@ -6,6 +6,7 @@ const (
 	Raw = iota
 	Ack
 	Wit
+	Catchup
 )
 
 type Message struct {

@@ -23,7 +23,6 @@ func (node *Node) Advance(step int) {
 func (node *Node) WaitForMsg(stop int) {
 	for node.TimeStep <= stop {
 		// For now we assume that the underlying receive function is blocking
-		// TODO Implement receive in a blocking way or introduce 2 kinds of receives
 		msg := node.Comm.Receive()
 		if msg == nil {
 			continue
@@ -32,12 +31,14 @@ func (node *Node) WaitForMsg(stop int) {
 
 		if node.TimeStep == stop {
 			fmt.Println("Break reached")
-
 			break
 		}
 
-		// TODO do we care about old messages? according to the paper we have to inform source nodes to catch up!
 		if msg.Step < node.TimeStep {
+			msg.MsgType = Catchup
+			msg.Step = node.TimeStep
+			msg.History = node.History
+			node.Comm.Broadcast(*msg)
 			continue
 		}
 
@@ -83,6 +84,10 @@ func (node *Node) WaitForMsg(stop int) {
 				node.Comm.Send(*msg, msg.Source)
 			}
 
+		case Catchup:
+			if msg.Source == node.CurrentMsg.Source && msg.Step > node.TimeStep {
+				node.Advance(msg.Step)
+			}
 		}
 
 	}
