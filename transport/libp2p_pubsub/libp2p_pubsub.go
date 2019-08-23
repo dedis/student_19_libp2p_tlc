@@ -8,6 +8,7 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
+	math_rand "math/rand"
 	"strings"
 	"time"
 
@@ -21,6 +22,9 @@ import (
 	quic "github.com/libp2p/go-libp2p-quic-transport"
 	ws "github.com/libp2p/go-ws-transport"
 )
+
+const delayBias = 100
+const delayRange = 1000
 
 type libp2pPubSub struct {
 	pubsub       *pubsub.PubSub       // PubSub of each individual node
@@ -37,11 +41,14 @@ func (c *libp2pPubSub) Broadcast(msg model.Message) {
 		fmt.Printf("Error : %v\n", err)
 		return
 	}
-	err = c.pubsub.Publish(c.topic, msgBytes)
-	if err != nil {
-		fmt.Printf("Error : %v\n", err)
-		return
-	}
+	go func(msgBytes []byte, topic string, pubsub *pubsub.PubSub) {
+		time.Sleep(time.Duration(delayBias+math_rand.Intn(delayRange)) * time.Millisecond)
+		err := pubsub.Publish(topic, msgBytes)
+		if err != nil {
+			fmt.Printf("Error : %v\n", err)
+			return
+		}
+	}(msgBytes, c.topic, c.pubsub)
 }
 
 func (c *libp2pPubSub) Send(msg model.Message, id int) {
