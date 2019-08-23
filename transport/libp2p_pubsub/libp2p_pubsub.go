@@ -56,6 +56,7 @@ func (c *libp2pPubSub) Receive() *model.Message {
 	msg, err := c.subscription.Next(context.Background())
 	// handling canceled subscriptions
 	if err != nil {
+		fmt.Printf("Error : %v\n", err)
 		return nil
 	}
 	msgBytes := msg.Data
@@ -67,6 +68,25 @@ func (c *libp2pPubSub) Receive() *model.Message {
 	}
 	modelMsg := ConvertPbMessage(&pbMessage)
 	return &modelMsg
+}
+
+func (c *libp2pPubSub) Disconnect() {
+	c.subscription.Cancel()
+	//c.subscription = nil
+	fmt.Println("DISCONNECT", c.pubsub.ListPeers(c.topic))
+}
+
+func (c *libp2pPubSub) Reconnect(topic string) {
+	var err error
+	if topic != "" {
+		c.topic = topic
+	}
+	c.subscription, err = c.pubsub.Subscribe(c.topic)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("RECONNECT to topic ", c.topic)
+	// TODO rejoining node must send a message first. I don't have access from here, so I have to handle it in the test!
 }
 
 // Cancel unsubscribes a node from pubsub
@@ -106,8 +126,6 @@ func (c *libp2pPubSub) initializePubSub(h core.Host) {
 		return
 	}
 
-	// Registering to the topic
-	c.topic = "TLC"
 	// Creating a subscription and subscribing to the topic
 	c.subscription, err = c.pubsub.Subscribe(c.topic)
 	if err != nil {
