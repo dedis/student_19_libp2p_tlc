@@ -25,13 +25,16 @@ import (
 
 const delayBias = 100
 const delayRange = 2000
-
-var Delayed = true
+const Delayed = true
+const BufferLen = 500
 
 type libp2pPubSub struct {
 	pubsub       *pubsub.PubSub       // PubSub of each individual node
 	subscription *pubsub.Subscription // Subscription of individual node
 	topic        string               // PubSub topic
+	victim       bool
+	unSubed      bool
+	buffer       chan model.Message
 }
 
 // Broadcast Uses PubSub publish to broadcast messages to other peers
@@ -64,6 +67,14 @@ func (c *libp2pPubSub) Send(msg model.Message, id int) {
 func (c *libp2pPubSub) Receive() *model.Message {
 	// Blocking function for consuming newly received messages
 	// We can access message here
+	if !c.victim {
+		select {
+		case msgFromBuffer := <-c.buffer:
+			return &msgFromBuffer
+		default:
+
+		}
+	}
 	msg, err := c.subscription.Next(context.Background())
 	// handling canceled subscriptions
 	if err != nil {
@@ -78,6 +89,10 @@ func (c *libp2pPubSub) Receive() *model.Message {
 		return nil
 	}
 	modelMsg := ConvertPbMessage(&pbMessage)
+	if c.victim {
+		c.buffer <- modelMsg
+		return nil
+	}
 	return &modelMsg
 }
 

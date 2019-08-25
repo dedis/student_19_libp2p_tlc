@@ -18,6 +18,7 @@ const (
 	NoFailure = iota
 	MinorFailure
 	MajorFailure
+	RejoiningFailure
 )
 
 // setupHosts is responsible for creating tlc nodes and also libp2p hosts.
@@ -45,6 +46,21 @@ func setupHosts(n int, initialPort int) ([]*model.Node, []*core.Host) {
 
 			}
 		*/
+		// Simulating rejoiningFailure with 1 node coming online after some seconds
+		// TODO comment out in other tests
+		if i <= 1 {
+			comm.victim = true
+			comm.buffer = make(chan model.Message, BufferLen)
+			if i == 0 {
+				go func() {
+					time.Sleep(30 * time.Second)
+					comm.victim = false
+				}()
+			}
+		} else {
+			comm.victim = false
+			comm.buffer = make(chan model.Message, 0)
+		}
 		nodes[i] = &model.Node{
 			Id:           i,
 			TimeStep:     0,
@@ -142,6 +158,8 @@ func simpleTest(t *testing.T, n int, initialPort int, stop int, failureModel Fai
 		nFail = minorityFailure(nodes, n)
 	case MajorFailure:
 		nFail = majorityFailure(nodes, n)
+	case RejoiningFailure:
+		nFail = 1
 	}
 
 	// PubSub is ready and we can start our algorithm
@@ -168,4 +186,11 @@ func TestWithMajorFailure(t *testing.T) {
 	logFile, _ := os.OpenFile("../../logs/MajorFailure.log", os.O_RDWR|os.O_CREATE, 0666)
 	model.Logger1 = log.New(logFile, "", log.Ltime|log.Lmicroseconds)
 	simpleTest(t, 10, 9900, 10, MajorFailure)
+}
+
+func TestWithRejoiningFailure(t *testing.T) {
+	// Create hosts in libp2p
+	logFile, _ := os.OpenFile("log.log", os.O_RDWR|os.O_CREATE, 0666)
+	model.Logger1 = log.New(logFile, "", log.Ltime|log.Lmicroseconds)
+	simpleTest(t, 5, 9900, 10, RejoiningFailure)
 }
