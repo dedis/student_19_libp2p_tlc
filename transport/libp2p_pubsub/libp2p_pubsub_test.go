@@ -10,6 +10,14 @@ import (
 	core "github.com/libp2p/go-libp2p-core"
 )
 
+type FailureModel int
+
+const (
+	NoFailure = iota
+	MinorFailure
+	MajorFailure
+)
+
 // setupHosts is responsible for creating tlc nodes and also libp2p hosts.
 func setupHosts(n int, initialPort int) ([]*model.Node, []*core.Host) {
 	// nodes used in tlc model
@@ -22,6 +30,7 @@ func setupHosts(n int, initialPort int) ([]*model.Node, []*core.Host) {
 		//var comm model.CommunicationInterface
 		var comm *libp2pPubSub
 		comm = new(libp2pPubSub)
+		comm.topic = "TLC"
 
 		// creating libp2p hosts
 		host := comm.createPeer(i, initialPort+i)
@@ -53,20 +62,67 @@ func setupNetworkTopology(hosts []*core.Host) {
 	// host0 ---- host1 ---- host2 ----- host3 ----- host4
 	//	 			|		   				|    	   |
 	//	            ------------------------------------
-	connectHostToPeer(*hosts[1], getLocalhostAddress(*hosts[0]))
-	connectHostToPeer(*hosts[2], getLocalhostAddress(*hosts[1]))
-	connectHostToPeer(*hosts[3], getLocalhostAddress(*hosts[2]))
-	connectHostToPeer(*hosts[4], getLocalhostAddress(*hosts[3]))
-	connectHostToPeer(*hosts[4], getLocalhostAddress(*hosts[1]))
-	connectHostToPeer(*hosts[3], getLocalhostAddress(*hosts[1]))
-	connectHostToPeer(*hosts[4], getLocalhostAddress(*hosts[1]))
-
+	n := len(hosts)
+	/*
+		for i := 0; i< n; i++ {
+			for j,nxtHost := range hosts {
+				if j == i{
+					continue
+				}
+				connectHostToPeer(*hosts[i], getLocalhostAddress(*nxtHost))
+			}
+		}
+	*/
+	for i := 0; i < n; i++ {
+		connectHostToPeer(*hosts[i], getLocalhostAddress(*hosts[(i+1)%n]))
+		connectHostToPeer(*hosts[i], getLocalhostAddress(*hosts[(i+2)%n]))
+		connectHostToPeer(*hosts[i], getLocalhostAddress(*hosts[(i+3)%n]))
+		connectHostToPeer(*hosts[i], getLocalhostAddress(*hosts[(i+4)%n]))
+	}
 	// Wait so that subscriptions on topic will be done and all peers will "know" of all other peers
 	time.Sleep(time.Second * 2)
 
 }
 
-func firstTest(t *testing.T, n int, initialPort int) {
+func simulateFailure(nodes []*model.Node, n int) {
+	for i, node := range nodes {
+		if i >= n/2 {
+			node.Comm.Disconnect()
+			if i == n-3 {
+				go func(node *model.Node) {
+					time.Sleep(5 * time.Second)
+					fmt.Println(node.Id)
+					node.Comm.Reconnect("")
+					node.Advance(node.TimeStep)
+				}(node)
+			}
+		}
+	}
+}
+
+func minorityFailure(nodes []*model.Node, n int) int {
+	nFail := (n - 1) / 2
+	//nFail := 4
+	failures(nodes, nFail)
+	return nFail
+}
+
+func majorityFailure(nodes []*model.Node, n int) int {
+	nFail := n/2 + 1
+	failures(nodes, nFail)
+	return nFail
+}
+
+func failures(nodes []*model.Node, nFail int) {
+	for i, node := range nodes {
+		if i < nFail {
+			node.Comm.Disconnect()
+		}
+	}
+}
+
+func simpleTest(t *testing.T, n int, initialPort int, stop int, failureModel FailureModel) {
+	var nFail int
 	nodes, hosts := setupHosts(n, initialPort)
 
 	defer func() {
@@ -78,13 +134,30 @@ func firstTest(t *testing.T, n int, initialPort int) {
 
 	setupNetworkTopology(hosts)
 
+	// Put failures here
+	switch failureModel {
+	case MinorFailure:
+		nFail = minorityFailure(nodes, n)
+	case MajorFailure:
+		nFail = majorityFailure(nodes, n)
+	}
+
 	// PubSub is ready and we can start our algorithm
-	test_utils.StartTest(nodes, 10)
+	test_utils.StartTest(nodes, stop, nFail)
 	test_utils.LogOutput(t, nodes)
 }
 
-func TestPubSub(t *testing.T) {
+func TestWithNoFailure(t *testing.T) {
 	// Create hosts in libp2p
-	firstTest(t, 5, 9000)
+	simpleTest(t, 10, 9900, 10, NoFailure)
+}
 
+func TestWithMinorFailure(t *testing.T) {
+	// Create hosts in libp2p
+	simpleTest(t, 10, 9900, 10, MinorFailure)
+}
+
+func TestWithMajorFailure(t *testing.T) {
+	// Create hosts in libp2p
+	simpleTest(t, 10, 9900, 10, MajorFailure)
 }

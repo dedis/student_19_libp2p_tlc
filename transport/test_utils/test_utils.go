@@ -13,7 +13,7 @@ func runNode(node *model.Node, stop int, wg *sync.WaitGroup) {
 }
 
 // StartTest is used for starting tlc nodes
-func StartTest(nodes []*model.Node, stop int) {
+func StartTest(nodes []*model.Node, stop int, fails int) {
 	wg := &sync.WaitGroup{}
 
 	for _, node := range nodes {
@@ -23,13 +23,13 @@ func StartTest(nodes []*model.Node, stop int) {
 		wg.Add(1)
 		go runNode(node, stop, wg)
 	}
-
+	wg.Add(-fails)
 	wg.Wait()
 	fmt.Println("The END")
 }
 
 func LogOutput(t *testing.T, nodes []*model.Node) {
 	for i := range nodes {
-		t.Logf("nodes: %d , TimeStep : %d , %v", i, nodes[i].TimeStep, nodes[i].History[1])
+		t.Logf("nodes: %d , TimeStep : %d", i, nodes[i].TimeStep)
 	}
 }
