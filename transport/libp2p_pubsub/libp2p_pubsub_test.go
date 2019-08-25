@@ -3,6 +3,8 @@ package libp2p_pubsub
 import (
 	"fmt"
 	"github.com/dedis/student_19_libp2p_tlc/transport/test_utils"
+	"log"
+	"os"
 	"testing"
 	"time"
 
@@ -149,15 +151,21 @@ func simpleTest(t *testing.T, n int, initialPort int, stop int, failureModel Fai
 
 func TestWithNoFailure(t *testing.T) {
 	// Create hosts in libp2p
+	logFile, _ := os.OpenFile("../../logs/NoFailure_NoDelay.log", os.O_RDWR|os.O_CREATE, 0666)
+	model.Logger1 = log.New(logFile, "", log.Ltime|log.Lmicroseconds)
 	simpleTest(t, 10, 9900, 10, NoFailure)
 }
 
 func TestWithMinorFailure(t *testing.T) {
 	// Create hosts in libp2p
+	logFile, _ := os.OpenFile("../../logs/MinorFailure.log", os.O_RDWR|os.O_CREATE, 0666)
+	model.Logger1 = log.New(logFile, "", log.Ltime|log.Lmicroseconds)
 	simpleTest(t, 10, 9900, 10, MinorFailure)
 }
 
 func TestWithMajorFailure(t *testing.T) {
 	// Create hosts in libp2p
+	logFile, _ := os.OpenFile("../../logs/MajorFailure.log", os.O_RDWR|os.O_CREATE, 0666)
+	model.Logger1 = log.New(logFile, "", log.Ltime|log.Lmicroseconds)
 	simpleTest(t, 10, 9900, 10, MajorFailure)
 }

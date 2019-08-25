@@ -24,7 +24,9 @@ import (
 )
 
 const delayBias = 100
-const delayRange = 1000
+const delayRange = 2000
+
+var Delayed = true
 
 type libp2pPubSub struct {
 	pubsub       *pubsub.PubSub       // PubSub of each individual node
@@ -42,10 +44,12 @@ func (c *libp2pPubSub) Broadcast(msg model.Message) {
 		return
 	}
 	go func(msgBytes []byte, topic string, pubsub *pubsub.PubSub) {
-		time.Sleep(time.Duration(delayBias+math_rand.Intn(delayRange)) * time.Millisecond)
+		if Delayed {
+			time.Sleep(time.Duration(delayBias+math_rand.Intn(delayRange)) * time.Millisecond)
+		}
 		err := pubsub.Publish(topic, msgBytes)
 		if err != nil {
-			fmt.Printf("Error : %v\n", err)
+			fmt.Printf("Error(((( : %v\n", err)
 			return
 		}
 	}(msgBytes, c.topic, c.pubsub)
@@ -63,7 +67,7 @@ func (c *libp2pPubSub) Receive() *model.Message {
 	msg, err := c.subscription.Next(context.Background())
 	// handling canceled subscriptions
 	if err != nil {
-		fmt.Printf("Error : %v\n", err)
+		//fmt.Printf("Error ***: %v\n", err)
 		return nil
 	}
 	msgBytes := msg.Data

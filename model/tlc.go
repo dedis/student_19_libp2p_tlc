@@ -1,6 +1,13 @@
 package model
 
-import "fmt"
+import (
+	"fmt"
+	"log"
+	"strconv"
+	"time"
+)
+
+var Logger1 *log.Logger
 
 // Advance will change the step of node to a new one.
 func (node *Node) Advance(step int) {
@@ -8,7 +15,9 @@ func (node *Node) Advance(step int) {
 	node.Acks = 0
 	node.Wits = 0
 
-	fmt.Printf("node %d , Broadcast in timeStep %d,%v\n", node.Id, node.TimeStep, node.History)
+	fmt.Printf("node %d , Broadcast in timeStep %d,%#v\n", node.Id, node.TimeStep, node.History)
+	Logger1.SetPrefix(strconv.FormatInt(time.Now().Unix(), 10) + " ")
+	Logger1.Printf("%d,%d\n", node.Id, node.TimeStep)
 	msg := Message{
 		Source:  node.Id,
 		MsgType: Raw,
@@ -30,7 +39,7 @@ func (node *Node) WaitForMsg(stop int) {
 		fmt.Printf("node %d in step %d ;Received MSG with step %d type %d source: %d\n", node.Id, node.TimeStep, msg.Step, msg.MsgType, msg.Source)
 
 		if node.TimeStep == stop {
-			fmt.Println("Break reached")
+			fmt.Println("Break reached by node ", node.Id)
 			break
 		}
 
@@ -56,6 +65,7 @@ func (node *Node) WaitForMsg(stop int) {
 				node.Wits += 1
 			} else if msg.Step == node.TimeStep { // Count message toward the threshold
 				node.Wits += 1
+				fmt.Printf("WITS: node %d , %d\n", node.Id, node.Wits)
 				if node.Wits >= node.ThresholdWit {
 					// Log the message in history
 					node.History = append(node.History, *msg)
@@ -66,9 +76,11 @@ func (node *Node) WaitForMsg(stop int) {
 
 		case Ack:
 			// Checking that the ack is for message of this step
+			fmt.Printf("received ACK. node %d %d\n", node.Id, msg.Source)
 			if (msg.Source != node.CurrentMsg.Source) || (msg.Step != node.CurrentMsg.Step) {
 				continue
 			}
+			fmt.Printf("received ACK. node %d !\n", node.Id)
 			node.Acks += 1
 			if node.Acks >= node.ThresholdAck {
 				msg.MsgType = Wit
@@ -87,6 +99,7 @@ func (node *Node) WaitForMsg(stop int) {
 				node.Comm.Send(*msg, msg.Source)
 			} else if msg.Step == node.TimeStep {
 				msg.MsgType = Ack
+				fmt.Printf("ACKing by node %d, for msg %d\n", node.Id, msg.Source)
 				node.Comm.Send(*msg, msg.Source)
 			}
 
