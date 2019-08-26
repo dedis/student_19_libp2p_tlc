@@ -18,11 +18,12 @@ const (
 	NoFailure = iota
 	MinorFailure
 	MajorFailure
-	RejoiningFailure
+	RejoiningMinorityFailure
+	RejoiningMajorityFailure
 )
 
 // setupHosts is responsible for creating tlc nodes and also libp2p hosts.
-func setupHosts(n int, initialPort int) ([]*model.Node, []*core.Host) {
+func setupHosts(n int, initialPort int, failureModel FailureModel) ([]*model.Node, []*core.Host) {
 	// nodes used in tlc model
 	nodes := make([]*model.Node, n)
 	// hosts used in libp2p communications
@@ -46,21 +47,33 @@ func setupHosts(n int, initialPort int) ([]*model.Node, []*core.Host) {
 
 			}
 		*/
-		// Simulating rejoiningFailure with 1 node coming online after some seconds
-		// TODO comment out in other tests
-		if i <= 1 {
+		// Simulating rejoiningFailure with 1 node getting out of delayed set after some seconds
+		nVictim := 0
+		switch failureModel {
+		case RejoiningMinorityFailure:
+			nVictim = (n - 1) / 2
+		case RejoiningMajorityFailure:
+			nVictim = (n + 1) / 2
+		}
+
+		if i < nVictim {
 			comm.victim = true
 			comm.buffer = make(chan model.Message, BufferLen)
 			if i == 0 {
 				go func() {
+					// Delay for the node to get out of delayed(victim) group
 					time.Sleep(30 * time.Second)
+					comm.Disconnect()
 					comm.victim = false
+					comm.Reconnect("")
+					fmt.Println("REJOINING FROM DELAYED SET")
 				}()
 			}
 		} else {
 			comm.victim = false
 			comm.buffer = make(chan model.Message, 0)
 		}
+
 		nodes[i] = &model.Node{
 			Id:           i,
 			TimeStep:     0,
@@ -141,7 +154,7 @@ func failures(nodes []*model.Node, nFail int) {
 
 func simpleTest(t *testing.T, n int, initialPort int, stop int, failureModel FailureModel) {
 	var nFail int
-	nodes, hosts := setupHosts(n, initialPort)
+	nodes, hosts := setupHosts(n, initialPort, failureModel)
 
 	defer func() {
 		fmt.Println("Closing hosts")
@@ -158,8 +171,10 @@ func simpleTest(t *testing.T, n int, initialPort int, stop int, failureModel Fai
 		nFail = minorityFailure(nodes, n)
 	case MajorFailure:
 		nFail = majorityFailure(nodes, n)
-	case RejoiningFailure:
-		nFail = 1
+	case RejoiningMinorityFailure:
+		nFail = (n-1)/2 - 1
+	case RejoiningMajorityFailure:
+		nFail = (n+1)/2 - 1
 	}
 
 	// PubSub is ready and we can start our algorithm
@@ -188,9 +203,16 @@ func TestWithMajorFailure(t *testing.T) {
 	simpleTest(t, 10, 9900, 10, MajorFailure)
 }
 
-func TestWithRejoiningFailure(t *testing.T) {
+func TestWithRejoiningMinorityFailure(t *testing.T) {
 	// Create hosts in libp2p
 	logFile, _ := os.OpenFile("log.log", os.O_RDWR|os.O_CREATE, 0666)
 	model.Logger1 = log.New(logFile, "", log.Ltime|log.Lmicroseconds)
-	simpleTest(t, 5, 9900, 10, RejoiningFailure)
+	simpleTest(t, 10, 9900, 10, RejoiningMinorityFailure)
+}
+
+func TestWithRejoiningMajorityFailure(t *testing.T) {
+	// Create hosts in libp2p
+	logFile, _ := os.OpenFile("log2.log", os.O_RDWR|os.O_CREATE, 0666)
+	model.Logger1 = log.New(logFile, "", log.Ltime|log.Lmicroseconds)
+	simpleTest(t, 10, 9900, 10, RejoiningMajorityFailure)
 }
