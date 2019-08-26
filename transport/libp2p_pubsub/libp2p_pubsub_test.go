@@ -20,7 +20,11 @@ const (
 	MajorFailure
 	RejoiningMinorityFailure
 	RejoiningMajorityFailure
+	LeaveRejoin
 )
+
+const RejoinDelay = 40
+const LeaveDelay = 30
 
 // setupHosts is responsible for creating tlc nodes and also libp2p hosts.
 func setupHosts(n int, initialPort int, failureModel FailureModel) ([]*model.Node, []*core.Host) {
@@ -54,6 +58,8 @@ func setupHosts(n int, initialPort int, failureModel FailureModel) ([]*model.Nod
 			nVictim = (n - 1) / 2
 		case RejoiningMajorityFailure:
 			nVictim = (n + 1) / 2
+		case LeaveRejoin:
+			nVictim = (n - 1) / 2
 		}
 
 		if i < nVictim {
@@ -62,7 +68,7 @@ func setupHosts(n int, initialPort int, failureModel FailureModel) ([]*model.Nod
 			if i == 0 {
 				go func() {
 					// Delay for the node to get out of delayed(victim) group
-					time.Sleep(30 * time.Second)
+					time.Sleep(RejoinDelay * time.Second)
 					comm.Disconnect()
 					comm.victim = false
 					comm.Reconnect("")
@@ -70,6 +76,15 @@ func setupHosts(n int, initialPort int, failureModel FailureModel) ([]*model.Nod
 				}()
 			}
 		} else {
+			if failureModel == LeaveRejoin {
+				if i == (n - 1) {
+					go func() {
+						// Delay for the node to leave the progressing group
+						time.Sleep(LeaveDelay * time.Second)
+						comm.Disconnect()
+					}()
+				}
+			}
 			comm.victim = false
 			comm.buffer = make(chan model.Message, 0)
 		}
@@ -175,6 +190,8 @@ func simpleTest(t *testing.T, n int, initialPort int, stop int, failureModel Fai
 		nFail = (n-1)/2 - 1
 	case RejoiningMajorityFailure:
 		nFail = (n+1)/2 - 1
+	case LeaveRejoin:
+		nFail = (n - 1) / 2
 	}
 
 	// PubSub is ready and we can start our algorithm
@@ -182,6 +199,7 @@ func simpleTest(t *testing.T, n int, initialPort int, stop int, failureModel Fai
 	test_utils.LogOutput(t, nodes)
 }
 
+// Testing TLC with majority thresholds with no node failures
 func TestWithNoFailure(t *testing.T) {
 	// Create hosts in libp2p
 	logFile, _ := os.OpenFile("../../logs/NoFailure_NoDelay.log", os.O_RDWR|os.O_CREATE, 0666)
@@ -189,6 +207,7 @@ func TestWithNoFailure(t *testing.T) {
 	simpleTest(t, 10, 9900, 10, NoFailure)
 }
 
+// Testing TLC with minor nodes failing
 func TestWithMinorFailure(t *testing.T) {
 	// Create hosts in libp2p
 	logFile, _ := os.OpenFile("../../logs/MinorFailure.log", os.O_RDWR|os.O_CREATE, 0666)
@@ -196,6 +215,7 @@ func TestWithMinorFailure(t *testing.T) {
 	simpleTest(t, 10, 9900, 10, MinorFailure)
 }
 
+// Testing TLC with majority of nodes failing
 func TestWithMajorFailure(t *testing.T) {
 	// Create hosts in libp2p
 	logFile, _ := os.OpenFile("../../logs/MajorFailure.log", os.O_RDWR|os.O_CREATE, 0666)
@@ -203,16 +223,30 @@ func TestWithMajorFailure(t *testing.T) {
 	simpleTest(t, 10, 9900, 10, MajorFailure)
 }
 
+// Testing TLC with majority of nodes working correctly and a set of delayed nodes. a node will leave the victim set
+// after some seconds and rejoin to the progressing nodes.
 func TestWithRejoiningMinorityFailure(t *testing.T) {
 	// Create hosts in libp2p
-	logFile, _ := os.OpenFile("log.log", os.O_RDWR|os.O_CREATE, 0666)
+	logFile, _ := os.OpenFile("../../logs/RejoiningMinority.log", os.O_RDWR|os.O_CREATE, 0666)
 	model.Logger1 = log.New(logFile, "", log.Ltime|log.Lmicroseconds)
 	simpleTest(t, 10, 9900, 10, RejoiningMinorityFailure)
 }
 
+// Testing TLC with majority of nodes being delayed. a node will leave the victim set after some seconds and rejoin to
+// the other connected nodes. This will make progress possible.
 func TestWithRejoiningMajorityFailure(t *testing.T) {
+	// Create hosts in libp2p
+	logFile, _ := os.OpenFile("../../logs/RejoiningMajority.log", os.O_RDWR|os.O_CREATE, 0666)
+	model.Logger1 = log.New(logFile, "", log.Ltime|log.Lmicroseconds)
+	simpleTest(t, 10, 9900, 10, RejoiningMajorityFailure)
+}
+
+// Testing TLC with majority of nodes working correctly and a set of delayed nodes. a node will lose connection to
+// progressing nodes and will stop the progress. After some seconds another node will join to the set, making progress
+// possible.
+func TestWithLeaveRejoin(t *testing.T) {
 	// Create hosts in libp2p
 	logFile, _ := os.OpenFile("log2.log", os.O_RDWR|os.O_CREATE, 0666)
 	model.Logger1 = log.New(logFile, "", log.Ltime|log.Lmicroseconds)
-	simpleTest(t, 10, 9900, 10, RejoiningMajorityFailure)
+	simpleTest(t, 10, 9900, 10, LeaveRejoin)
 }
