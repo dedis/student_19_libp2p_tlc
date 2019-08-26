@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/dedis/student_19_libp2p_tlc/model"
 	"github.com/dedis/student_19_libp2p_tlc/transport/libp2p_pubsub"
+	"github.com/dedis/student_19_libp2p_tlc/transport/libp2p_pubsub/protobuf"
 	"github.com/emersion/go-imap"
 	"github.com/emersion/go-imap/client"
 	"github.com/golang/protobuf/proto"
@@ -52,7 +53,7 @@ func (m *mail) Receive() *model.Message {
 	}
 	fmt.Println("received :", m.username, msgBytes)
 	m.recentIndex += 1
-	var pbMessage libp2p_pubsub.PbMessage
+	var pbMessage protobuf.PbMessage
 	err := proto.Unmarshal(msgBytes, &pbMessage)
 	if err != nil {
 		fmt.Printf("Error : %v\n", err)
@@ -60,6 +61,11 @@ func (m *mail) Receive() *model.Message {
 	}
 	modelMsg := libp2p_pubsub.ConvertPbMessage(&pbMessage)
 	return &modelMsg
+}
+func (c *mail) Disconnect() {
+}
+
+func (c *mail) Reconnect(topic string) {
 }
 
 // SendMail sends a mail from a user to several users

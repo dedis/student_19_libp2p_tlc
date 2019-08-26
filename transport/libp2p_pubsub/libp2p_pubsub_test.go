@@ -30,6 +30,7 @@ const LeaveDelay = 30
 func setupHosts(n int, initialPort int, failureModel FailureModel) ([]*model.Node, []*core.Host) {
 	// nodes used in tlc model
 	nodes := make([]*model.Node, n)
+
 	// hosts used in libp2p communications
 	hosts := make([]*core.Host, n)
 
@@ -43,15 +44,11 @@ func setupHosts(n int, initialPort int, failureModel FailureModel) ([]*model.Nod
 		// creating libp2p hosts
 		host := comm.createPeer(i, initialPort+i)
 		hosts[i] = host
+
 		// creating pubsubs
 		comm.initializePubSub(*host)
-		/*
-			if i == (len(nodes) - 1) {
-				comm.Cancel(2050, 2060)
 
-			}
-		*/
-		// Simulating rejoiningFailure with 1 node getting out of delayed set after some seconds
+		// Simulating rejoining failures, where a node leaves the delayed set and joins other progressing nodes
 		nVictim := 0
 		switch failureModel {
 		case RejoiningMinorityFailure:
@@ -65,13 +62,16 @@ func setupHosts(n int, initialPort int, failureModel FailureModel) ([]*model.Nod
 		if i < nVictim {
 			comm.victim = true
 			comm.buffer = make(chan model.Message, BufferLen)
+
 			if i == 0 {
 				go func() {
 					// Delay for the node to get out of delayed(victim) group
 					time.Sleep(RejoinDelay * time.Second)
+
 					comm.Disconnect()
 					comm.victim = false
 					comm.Reconnect("")
+
 					fmt.Println("REJOINING FROM DELAYED SET")
 				}()
 			}
@@ -81,10 +81,12 @@ func setupHosts(n int, initialPort int, failureModel FailureModel) ([]*model.Nod
 					go func() {
 						// Delay for the node to leave the progressing group
 						time.Sleep(LeaveDelay * time.Second)
+
 						comm.Disconnect()
 					}()
 				}
 			}
+
 			comm.victim = false
 			comm.buffer = make(chan model.Message, 0)
 		}
@@ -105,9 +107,6 @@ func setupHosts(n int, initialPort int, failureModel FailureModel) ([]*model.Nod
 func setupNetworkTopology(hosts []*core.Host) {
 
 	// Connect hosts to each other in a topology
-	// host0 ---- host1 ---- host2 ----- host3 ----- host4
-	//	 			|		   				|    	   |
-	//	            ------------------------------------
 	n := len(hosts)
 	/*
 		for i := 0; i< n; i++ {
@@ -128,22 +127,6 @@ func setupNetworkTopology(hosts []*core.Host) {
 	// Wait so that subscriptions on topic will be done and all peers will "know" of all other peers
 	time.Sleep(time.Second * 2)
 
-}
-
-func simulateFailure(nodes []*model.Node, n int) {
-	for i, node := range nodes {
-		if i >= n/2 {
-			node.Comm.Disconnect()
-			if i == n-3 {
-				go func(node *model.Node) {
-					time.Sleep(5 * time.Second)
-					fmt.Println(node.Id)
-					node.Comm.Reconnect("")
-					node.Advance(node.TimeStep)
-				}(node)
-			}
-		}
-	}
 }
 
 func minorityFailure(nodes []*model.Node, n int) int {

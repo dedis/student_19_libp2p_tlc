@@ -5,10 +5,13 @@ import (
 	"fmt"
 	"github.com/dedis/student_19_libp2p_tlc/model"
 	"github.com/dedis/student_19_libp2p_tlc/transport/libp2p_pubsub"
+	"github.com/dedis/student_19_libp2p_tlc/transport/libp2p_pubsub/protobuf"
 	"github.com/dedis/student_19_libp2p_tlc/transport/test_utils"
 	"github.com/emersion/go-imap"
 	"github.com/emersion/go-imap/client"
 	"github.com/golang/protobuf/proto"
+	"log"
+	"os"
 	"testing"
 	"time"
 	"unicode/utf8"
@@ -47,8 +50,8 @@ func setup(n int) []*model.Node {
 		nodes[i] = &model.Node{
 			Id:           i,
 			TimeStep:     0,
-			ThresholdWit: n/2 + 1,
-			ThresholdAck: n/2 + 1,
+			ThresholdWit: n,
+			ThresholdAck: n,
 			Acks:         0,
 			Comm:         comm,
 			History:      make([]model.Message, 0)}
@@ -115,8 +118,10 @@ func deleteMail(username string, password string) {
 }
 
 func TestMail(t *testing.T) {
+	logFile, _ := os.OpenFile("../../logs/NoFailure_Mail.log", os.O_RDWR|os.O_CREATE, 0666)
+	model.Logger1 = log.New(logFile, "", log.Ltime|log.Lmicroseconds)
 	nodes := setup(5)
-	test_utils.StartTest(nodes, 5)
+	test_utils.StartTest(nodes, 5, 0)
 	test_utils.LogOutput(t, nodes)
 }
 
@@ -134,7 +139,7 @@ func TestMailProto(t *testing.T) {
 	//data := GetMail(usernames[2], passwords[2], 1)
 	data := GetMailSubject(usernames[2], passwords[2], 1)
 	fmt.Println("BYTES", data)
-	var pbMessage libp2p_pubsub.PbMessage
+	var pbMessage protobuf.PbMessage
 	err = proto.Unmarshal(data, &pbMessage)
 	if err != nil {
 		panic(err)

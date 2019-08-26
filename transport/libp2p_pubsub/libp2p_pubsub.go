@@ -5,6 +5,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/rand"
 	"fmt"
+	"github.com/dedis/student_19_libp2p_tlc/transport/libp2p_pubsub/protobuf"
 	"github.com/golang/protobuf/proto"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
@@ -32,24 +33,25 @@ type libp2pPubSub struct {
 	pubsub       *pubsub.PubSub       // PubSub of each individual node
 	subscription *pubsub.Subscription // Subscription of individual node
 	topic        string               // PubSub topic
-	victim       bool
-	unSubed      bool
-	buffer       chan model.Message
+	victim       bool                 // Flag for declaring a node as a victim
+	buffer       chan model.Message   // A buffer for keeping received message in case the node is kept in the delayed set by adversary
 }
 
 // Broadcast Uses PubSub publish to broadcast messages to other peers
 func (c *libp2pPubSub) Broadcast(msg model.Message) {
 	// Broadcasting to a topic in PubSub
-	//fmt.Printf("sending this message as struct: %v\n", msg)
 	msgBytes, err := proto.Marshal(ConvertModelMessage(msg))
 	if err != nil {
 		fmt.Printf("Error : %v\n", err)
 		return
 	}
+
+	// Send the message with a delay in order to prevent message loss in libp2p
 	go func(msgBytes []byte, topic string, pubsub *pubsub.PubSub) {
 		if Delayed {
 			time.Sleep(time.Duration(delayBias+math_rand.Intn(delayRange)) * time.Millisecond)
 		}
+
 		err := pubsub.Publish(topic, msgBytes)
 		if err != nil {
 			fmt.Printf("Error(((( : %v\n", err)
@@ -58,15 +60,15 @@ func (c *libp2pPubSub) Broadcast(msg model.Message) {
 	}(msgBytes, c.topic, c.pubsub)
 }
 
+// Send uses Broadcast for sending messages
 func (c *libp2pPubSub) Send(msg model.Message, id int) {
-	// In libp2p implementation, we also broadcast instead of sending directy. So Ack will be broadcast in this case.
+	// In libp2p implementation, we also broadcast instead of sending directly. So Acks will be broadcast in this case.
 	c.Broadcast(msg)
 }
 
 // Receive gets message from PubSub in a blocking way
 func (c *libp2pPubSub) Receive() *model.Message {
-	// Blocking function for consuming newly received messages
-	// We can access message here
+	// Check buffer for existing messages
 	if !c.victim {
 		select {
 		case msgFromBuffer := <-c.buffer:
@@ -75,31 +77,35 @@ func (c *libp2pPubSub) Receive() *model.Message {
 
 		}
 	}
+
+	// Blocking function for consuming newly received messages
+	// We can access message here
 	msg, err := c.subscription.Next(context.Background())
 	// handling canceled subscriptions
 	if err != nil {
-		//fmt.Printf("Error ***: %v\n", err)
 		return nil
 	}
+
 	msgBytes := msg.Data
-	var pbMessage PbMessage
+	var pbMessage protobuf.PbMessage
 	err = proto.Unmarshal(msgBytes, &pbMessage)
 	if err != nil {
 		fmt.Printf("Error : %v\n", err)
 		return nil
 	}
+
 	modelMsg := ConvertPbMessage(&pbMessage)
 	if c.victim {
 		c.buffer <- modelMsg
 		return nil
 	}
+
 	return &modelMsg
 }
 
 func (c *libp2pPubSub) Disconnect() {
 	c.subscription.Cancel()
-	//c.subscription = nil
-	fmt.Println("DISCONNECT", c.pubsub.ListPeers(c.topic))
+	fmt.Println("DISCONNECT")
 }
 
 func (c *libp2pPubSub) Reconnect(topic string) {
@@ -107,12 +113,12 @@ func (c *libp2pPubSub) Reconnect(topic string) {
 	if topic != "" {
 		c.topic = topic
 	}
+
 	c.subscription, err = c.pubsub.Subscribe(c.topic)
 	if err != nil {
 		panic(err)
 	}
 	fmt.Println("RECONNECT to topic ", c.topic)
-	// TODO rejoining node must send a message first. I don't have access from here, so I have to handle it in the test!
 }
 
 // Cancel unsubscribes a node from pubsub
@@ -137,7 +143,6 @@ func (c *libp2pPubSub) createPeer(nodeId int, port int) *core.Host {
 
 	fmt.Printf("Node %v is %s\n", nodeId, getLocalhostAddress(h))
 
-	// Returning pointer to the created libp2p host
 	return &h
 }
 
@@ -273,19 +278,19 @@ func connectHostToPeer(h core.Host, connectToAddress string) {
 }
 
 // ConvertModelMessage is for converting message defined in model to message used by protobuf
-func ConvertModelMessage(msg model.Message) (message *PbMessage) {
+func ConvertModelMessage(msg model.Message) (message *protobuf.PbMessage) {
 	source := int64(msg.Source)
 	step := int64(msg.Step)
 
-	msgType := MsgType(int(msg.MsgType))
+	msgType := protobuf.MsgType(int(msg.MsgType))
 
-	history := make([]*PbMessage, 0)
+	history := make([]*protobuf.PbMessage, 0)
 
 	for _, hist := range msg.History {
 		history = append(history, ConvertModelMessage(hist))
 	}
 
-	message = &PbMessage{
+	message = &protobuf.PbMessage{
 		Source:  &source,
 		Step:    &step,
 		MsgType: &msgType,
@@ -295,7 +300,7 @@ func ConvertModelMessage(msg model.Message) (message *PbMessage) {
 }
 
 // ConvertPbMessage is for converting protobuf message to message used in model
-func ConvertPbMessage(msg *PbMessage) (message model.Message) {
+func ConvertPbMessage(msg *protobuf.PbMessage) (message model.Message) {
 	history := make([]model.Message, 0)
 
 	for _, hist := range msg.History {

@@ -31,5 +31,6 @@ func StartTest(nodes []*model.Node, stop int, fails int) {
 func LogOutput(t *testing.T, nodes []*model.Node) {
 	for i := range nodes {
 		t.Logf("nodes: %d , TimeStep : %d", i, nodes[i].TimeStep)
+		model.Logger1.Printf("%d,%d\n", i, nodes[i].TimeStep)
 	}
 }
