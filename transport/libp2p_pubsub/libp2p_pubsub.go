@@ -35,6 +35,7 @@ type libp2pPubSub struct {
 	topic        string               // PubSub topic
 	victim       bool                 // Flag for declaring a node as a victim
 	buffer       chan model.Message   // A buffer for keeping received message in case the node is kept in the delayed set by adversary
+	group        []int
 }
 
 // Broadcast Uses PubSub publish to broadcast messages to other peers
@@ -96,8 +97,17 @@ func (c *libp2pPubSub) Receive() *model.Message {
 
 	modelMsg := ConvertPbMessage(&pbMessage)
 	if c.victim {
-		c.buffer <- modelMsg
-		return nil
+		var connected bool
+		for _, n := range c.group {
+			if n == modelMsg.Source {
+				connected = true
+				break
+			}
+		}
+		if !connected {
+			c.buffer <- modelMsg
+			return nil
+		}
 	}
 
 	return &modelMsg

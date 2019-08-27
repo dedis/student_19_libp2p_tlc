@@ -21,6 +21,7 @@ const (
 	RejoiningMinorityFailure
 	RejoiningMajorityFailure
 	LeaveRejoin
+	ThreeGroups
 )
 
 const FailureDelay = 3
@@ -58,6 +59,17 @@ func setupHosts(n int, initialPort int, failureModel FailureModel) ([]*model.Nod
 			nVictim = (n + 1) / 2
 		case LeaveRejoin:
 			nVictim = (n - 1) / 2
+		case ThreeGroups:
+			nVictim = n
+		}
+		if failureModel == ThreeGroups {
+			if i < 3 {
+				comm.group = []int{0, 1, 2}
+			} else if i < 6 {
+				comm.group = []int{3, 4, 5}
+			} else {
+				comm.group = []int{}
+			}
 		}
 
 		if i < nVictim {
@@ -69,7 +81,11 @@ func setupHosts(n int, initialPort int, failureModel FailureModel) ([]*model.Nod
 				comm.victim = true
 			}()
 
-			if i <= 1 {
+			nRejoin := 2
+			if failureModel == ThreeGroups {
+				nRejoin = 6
+			}
+			if i < nRejoin {
 				go func() {
 					// Delay for the node to get out of delayed(victim) group
 					time.Sleep((RejoinDelay + time.Duration(FailureDelay*i)) * time.Second)
@@ -188,6 +204,8 @@ func simpleTest(t *testing.T, n int, initialPort int, stop int, failureModel Fai
 		nFail = (n+1)/2 - 1
 	case LeaveRejoin:
 		nFail = (n-1)/2 - 1
+	case ThreeGroups:
+		nFail = (n - 1) / 2
 	}
 
 	// PubSub is ready and we can start our algorithm
@@ -245,4 +263,11 @@ func TestWithLeaveRejoin(t *testing.T) {
 	logFile, _ := os.OpenFile("log8.log", os.O_RDWR|os.O_CREATE, 0666)
 	model.Logger1 = log.New(logFile, "", log.Ltime|log.Lmicroseconds)
 	simpleTest(t, 11, 9900, 8, LeaveRejoin)
+}
+
+func TestWithThreeGroups(t *testing.T) {
+	// Create hosts in libp2p
+	logFile, _ := os.OpenFile("log9.log", os.O_RDWR|os.O_CREATE, 0666)
+	model.Logger1 = log.New(logFile, "", log.Ltime|log.Lmicroseconds)
+	simpleTest(t, 11, 9900, 8, ThreeGroups)
 }
