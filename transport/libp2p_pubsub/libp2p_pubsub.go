@@ -25,7 +25,7 @@ import (
 )
 
 const delayBias = 100
-const delayRange = 2000
+const delayRange = 1000
 const Delayed = true
 const BufferLen = 500
 
