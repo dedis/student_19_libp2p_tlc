@@ -1,7 +1,7 @@
 from matplotlib import pyplot as plt
 
 if __name__ == '__main__':
-    Filename = "NoFailure_NoDelay"
+    Filename = "LeaveRejoin_main"
     with open("../logs/" + Filename + ".log") as f:
         line = f.readline()
         data = dict()
@@ -17,9 +17,15 @@ if __name__ == '__main__':
             data[node] = times
             line = f.readline()
 
-    for node in data.keys():
-        print(node)
-        plt.step([i[1] for i in data[node]], [i[0] for i in data[node]], where='post')
+    data["0"], data["4"] = data["4"], data["0"]
+    data["1"], data["3"] = data["3"], data["1"]
 
-    plt.savefig("../graphs/" + Filename + ".png")
+    base = min([a[0][1] for a in list(data.values())])
+    for j,node in enumerate(data.keys()):
+        print(node)
+        plt.step([i[1] - base for i in data[node]], [i[0] + 0.03*j for i in data[node]], where='post')
+
+    plt.xlabel("time in seconds")
+    plt.ylabel("time steps")
+    # plt.savefig("../graphs/" + Filename + ".png")
     plt.show()
