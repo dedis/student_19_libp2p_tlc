@@ -1,7 +1,7 @@
 from matplotlib import pyplot as plt
 
 if __name__ == '__main__':
-    Filename = "LeaveRejoin_main"
+    Filename = "Websocket"
     with open("../logs/" + Filename + ".log") as f:
         line = f.readline()
         data = dict()
@@ -21,6 +21,8 @@ if __name__ == '__main__':
     data["1"], data["3"] = data["3"], data["1"]
 
     base = min([a[0][1] for a in list(data.values())])
+    max = max([a[-1][1] for a in list(data.values())]) - base
+    print(max)
     for j,node in enumerate(data.keys()):
         print(node)
         plt.step([i[1] - base for i in data[node]], [i[0] + 0.03*j for i in data[node]], where='post')
