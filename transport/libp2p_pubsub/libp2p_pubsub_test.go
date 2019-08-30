@@ -218,6 +218,7 @@ func TestWithNoFailure(t *testing.T) {
 	// Create hosts in libp2p
 	logFile, _ := os.OpenFile("../../logs/NoFailure_NoDelay.log", os.O_RDWR|os.O_CREATE, 0666)
 	model.Logger1 = log.New(logFile, "", log.Ltime|log.Lmicroseconds)
+	Delayed = false
 	simpleTest(t, 11, 9900, 10, NoFailure)
 }
 

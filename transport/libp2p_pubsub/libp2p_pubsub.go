@@ -26,7 +26,9 @@ import (
 
 const delayBias = 100
 const delayRange = 1000
-const Delayed = true
+
+var Delayed = true
+
 const BufferLen = 500
 
 type libp2pPubSub struct {
