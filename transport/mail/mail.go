@@ -23,6 +23,7 @@ type mail struct {
 	password    string
 	recentIndex uint32
 	addressBook []string
+	imapSession *client.Client
 }
 
 // Broadcast sends mail to all addresses inside AddressBook
@@ -46,7 +47,7 @@ func (m *mail) Send(msg model.Message, id int) {
 
 // Receive gets new mail from inbox
 func (m *mail) Receive() *model.Message {
-	msgBytes := GetMailSubject(m.username, m.password, m.recentIndex)
+	msgBytes := GetMailSubject(m.imapSession, m.recentIndex)
 	if msgBytes == nil {
 		time.Sleep(2 * time.Second)
 		return nil
@@ -162,35 +163,7 @@ func GetMail(username string, password string, index uint32) []byte {
 	return body
 }
 
-func GetMailSubject(username string, password string, index uint32) []byte {
-	// Connect to server
-	c, err := client.DialTLS("localhost.localdomain:993", &tls.Config{InsecureSkipVerify: true})
-	if err != nil {
-		fmt.Printf("Error : %v\n", err)
-		return nil
-	}
-	// TODO Don't logout here and login again. Do it only once
-	// Don't forget to logout
-	defer c.Logout()
-
-	// Login
-	if err := c.Login(username, password); err != nil {
-		fmt.Printf("Error : %v\n", err)
-		return nil
-	}
-
-	// List mailboxes
-	mailboxes := make(chan *imap.MailboxInfo, 10)
-	done := make(chan error, 1)
-	go func() {
-		done <- c.List("", "*", mailboxes)
-	}()
-
-	if err := <-done; err != nil {
-		fmt.Printf("Error : %v\n", err)
-		return nil
-	}
-
+func GetMailSubject(c *client.Client, index uint32) []byte {
 	// Select INBOX
 	mbox, err := c.Select("INBOX", false)
 	if err != nil {
@@ -207,7 +180,7 @@ func GetMailSubject(username string, password string, index uint32) []byte {
 	seqset.AddRange(index, index)
 
 	messages := make(chan *imap.Message, 10)
-	done = make(chan error, 1)
+	done := make(chan error, 1)
 	go func() {
 		done <- c.Fetch(seqset, []imap.FetchItem{imap.FetchEnvelope}, messages)
 	}()
@@ -219,4 +192,24 @@ func GetMailSubject(username string, password string, index uint32) []byte {
 	msg := <-messages
 	fmt.Println([]byte(msg.Envelope.Subject))
 	return []byte(msg.Envelope.Subject)
+}
+
+func StartImapSession(username string, password string) *client.Client {
+	// Connect to server
+	c, err := client.DialTLS("localhost.localdomain:993", &tls.Config{InsecureSkipVerify: true})
+	if err != nil {
+		fmt.Printf("Error : %v\n", err)
+		return nil
+	}
+	// TODO Don't logout here and login again. Do it only once
+	// Don't forget to logout
+	// defer c.Logout()
+
+	// Login
+	if err := c.Login(username, password); err != nil {
+		fmt.Printf("Error : %v\n", err)
+		return nil
+	}
+
+	return c
 }

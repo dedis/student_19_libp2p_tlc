@@ -46,6 +46,7 @@ func setup(n int) []*model.Node {
 		comm.password = passwords[i]
 		comm.recentIndex = 1
 		comm.addressBook = usernames
+		comm.imapSession = StartImapSession(usernames[i], passwords[i])
 
 		nodes[i] = &model.Node{
 			Id:           i,
@@ -121,7 +122,7 @@ func TestMail(t *testing.T) {
 	logFile, _ := os.OpenFile("../../logs/NoFailure_Mail.log", os.O_RDWR|os.O_CREATE, 0666)
 	model.Logger1 = log.New(logFile, "", log.Ltime|log.Lmicroseconds)
 	nodes := setup(5)
-	test_utils.StartTest(nodes, 5, 0)
+	test_utils.StartTest(nodes, 10, 0)
 	test_utils.LogOutput(t, nodes)
 }
 
@@ -137,7 +138,7 @@ func TestMailProto(t *testing.T) {
 	SendMail(usernames[0], usernames, "", msgBytes, passwords[0])
 	time.Sleep(time.Second)
 	//data := GetMail(usernames[2], passwords[2], 1)
-	data := GetMailSubject(usernames[2], passwords[2], 1)
+	data := GetMailSubject(StartImapSession(usernames[2], passwords[2]), 1)
 	fmt.Println("BYTES", data)
 	var pbMessage protobuf.PbMessage
 	err = proto.Unmarshal(data, &pbMessage)
