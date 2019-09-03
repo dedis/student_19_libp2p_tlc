@@ -44,11 +44,11 @@ func setupHosts(n int, initialPort int, failureModel FailureModel) ([]*model.Nod
 		comm.topic = "TLC"
 
 		// creating libp2p hosts
-		host := comm.createPeer(i, initialPort+i)
+		host := comm.CreatePeer(i, initialPort+i)
 		hosts[i] = host
 
 		// creating pubsubs
-		comm.initializePubSub(*host)
+		comm.InitializePubSub(*host)
 
 		// Simulating rejoining failures, where a node leaves the delayed set and joins other progressing nodes
 		nVictim := 0
@@ -64,21 +64,20 @@ func setupHosts(n int, initialPort int, failureModel FailureModel) ([]*model.Nod
 		}
 		if failureModel == ThreeGroups {
 			if i < 3 {
-				comm.group = []int{0, 1, 2}
+				comm.JoinGroup([]int{0, 1, 2})
 			} else if i < 6 {
-				comm.group = []int{3, 4, 5}
+				comm.JoinGroup([]int{3, 4, 5})
 			} else {
-				comm.group = []int{}
+				comm.JoinGroup([]int{})
 			}
 		}
 
 		if i < nVictim {
-			comm.victim = false
-			comm.buffer = make(chan model.Message, BufferLen)
+			comm.InitializeVictim(true)
 
 			go func() {
 				time.Sleep(2 * FailureDelay * time.Second)
-				comm.victim = true
+				comm.AttackVictim()
 			}()
 
 			nRejoin := 2
@@ -90,11 +89,7 @@ func setupHosts(n int, initialPort int, failureModel FailureModel) ([]*model.Nod
 					// Delay for the node to get out of delayed(victim) group
 					time.Sleep((RejoinDelay + time.Duration(FailureDelay*i)) * time.Second)
 
-					comm.Disconnect()
-					comm.victim = false
-					comm.Reconnect("")
-
-					fmt.Println("REJOINING FROM DELAYED SET")
+					comm.ReleaseVictim()
 				}()
 			}
 		} else {
@@ -103,14 +98,12 @@ func setupHosts(n int, initialPort int, failureModel FailureModel) ([]*model.Nod
 					go func() {
 						// Delay for the node to leave the progressing group
 						time.Sleep(LeaveDelay * time.Second)
-
 						comm.Disconnect()
 					}()
 				}
 			}
 
-			comm.victim = false
-			comm.buffer = make(chan model.Message, 0)
+			comm.InitializeVictim(false)
 		}
 
 		nodes[i] = &model.Node{
@@ -216,7 +209,7 @@ func simpleTest(t *testing.T, n int, initialPort int, stop int, failureModel Fai
 // Testing TLC with majority thresholds with no node failures
 func TestWithNoFailure(t *testing.T) {
 	// Create hosts in libp2p
-	logFile, _ := os.OpenFile("../../logs/NoFailure_NoDelay.log", os.O_RDWR|os.O_CREATE, 0666)
+	logFile, _ := os.OpenFile("log51.log", os.O_RDWR|os.O_CREATE, 0666)
 	model.Logger1 = log.New(logFile, "", log.Ltime|log.Lmicroseconds)
 	Delayed = false
 	simpleTest(t, 11, 9900, 10, NoFailure)

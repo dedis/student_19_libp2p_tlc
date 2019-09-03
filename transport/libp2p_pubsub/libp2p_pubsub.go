@@ -99,6 +99,7 @@ func (c *libp2pPubSub) Receive() *model.Message {
 
 	modelMsg := ConvertPbMessage(&pbMessage)
 	if c.victim {
+		fmt.Println("VICTIM !!!!")
 		var connected bool
 		for _, n := range c.group {
 			if n == modelMsg.Source {
@@ -146,7 +147,7 @@ func (c *libp2pPubSub) Cancel(cancelTime int, reconnectTime int) {
 }
 
 // createPeer creates a peer on localhost and configures it to use libp2p.
-func (c *libp2pPubSub) createPeer(nodeId int, port int) *core.Host {
+func (c *libp2pPubSub) CreatePeer(nodeId int, port int) *core.Host {
 	// Creating a node
 	h, err := createHost(port)
 	if err != nil {
@@ -159,7 +160,7 @@ func (c *libp2pPubSub) createPeer(nodeId int, port int) *core.Host {
 }
 
 // initializePubSub creates a PubSub for the peer and also subscribes to a topic
-func (c *libp2pPubSub) initializePubSub(h core.Host) {
+func (c *libp2pPubSub) InitializePubSub(h core.Host) {
 	var err error
 	// Creating pubsub
 	// every peer has its own PubSub
@@ -176,6 +177,70 @@ func (c *libp2pPubSub) initializePubSub(h core.Host) {
 		return
 	}
 
+}
+
+// InitializeVictim initializes buffer for keeping messages when a node is attacked by adversary.
+func (c *libp2pPubSub) InitializeVictim(makeBuffer bool) {
+	// victim is always false in initialization
+	c.victim = false
+	if makeBuffer {
+		c.buffer = make(chan model.Message, BufferLen)
+	} else {
+		c.buffer = make(chan model.Message, 0)
+	}
+}
+
+// AttackVictim adds a node to the set of indefinite-delayed nodes.
+func (c *libp2pPubSub) AttackVictim() {
+	c.victim = true
+	c.makeVictimNotGossip()
+}
+
+// ReleaseVictim removes the node from set of delayed nodes.
+func (c *libp2pPubSub) ReleaseVictim() {
+	c.Disconnect()
+	c.victim = false
+	c.Reconnect("")
+	err := c.pubsub.UnregisterTopicValidator(c.topic)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("REJOINING FROM DELAYED SET")
+}
+
+// JoinGroup adds nodes within the same groups to the node's group variable.
+func (c *libp2pPubSub) JoinGroup(group []int) {
+	c.group = group
+}
+
+// makeVictimNotGossip prevents victim from participating in gossip protocol
+func (c *libp2pPubSub) makeVictimNotGossip() {
+	// Registering a message validator function. This function will process every received message by pubsub and based
+	// on return value will forward it to other nodes. Returning false will prevent the peer from forwarding the message
+	err := c.pubsub.RegisterTopicValidator(c.topic, func(ctx context.Context, pid peer.ID, msg *pubsub.Message) bool {
+		// Process message in a go routine to prevent blocking this function
+		go func(data []byte) {
+			msgBytes := data
+			var pbMessage protobuf.PbMessage
+			err := proto.Unmarshal(msgBytes, &pbMessage)
+			if err != nil {
+				panic(err)
+			}
+
+			modelMsg := ConvertPbMessage(&pbMessage)
+			c.buffer <- modelMsg
+		}(msg.Data)
+
+		//if the return value is true, the message will hit other peers
+		//if the return value is false, this peer prevented message broadcasting
+		//note that this topic validator will be called also for messages sent by self
+		return false
+	})
+
+	if err != nil {
+		panic(err)
+	}
 }
 
 // createHost creates a host with some default options and a signing identity
