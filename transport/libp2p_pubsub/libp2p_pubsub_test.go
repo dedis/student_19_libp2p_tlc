@@ -2,6 +2,7 @@ package libp2p_pubsub
 
 import (
 	"fmt"
+	"github.com/dedis/student_19_libp2p_tlc/protobuf/messagepb"
 	"github.com/dedis/student_19_libp2p_tlc/transport/test_utils"
 	"log"
 	"os"
@@ -112,6 +113,7 @@ func setupHosts(n int, initialPort int, failureModel FailureModel) ([]*model.Nod
 			ThresholdWit: n/2 + 1,
 			ThresholdAck: n/2 + 1,
 			Acks:         0,
+			ConvertMsg:   &messagepb.Convert{},
 			Comm:         comm,
 			History:      make([]model.Message, 0)}
 	}
@@ -259,6 +261,7 @@ func TestWithLeaveRejoin(t *testing.T) {
 	simpleTest(t, 11, 9900, 8, LeaveRejoin)
 }
 
+// TODO: Find a way to simualte this onw, since I have removed the case for this simulation
 func TestWithThreeGroups(t *testing.T) {
 	// Create hosts in libp2p
 	logFile, _ := os.OpenFile("log9.log", os.O_RDWR|os.O_CREATE, 0666)

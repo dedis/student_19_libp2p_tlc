@@ -15,3 +15,8 @@ type Message struct {
 	MsgType MsgType   // Type of message
 	History []Message // History of messages. Sent to ensure causality, But in an inefficient way.
 }
+
+type MessageInterface interface {
+	MessageToBytes(Message) *[]byte
+	BytesToModelMessage([]byte) *Message
+}

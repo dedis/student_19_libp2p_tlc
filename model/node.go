@@ -9,16 +9,17 @@ type Node struct {
 	Acks         int                    // Number of acknowledges
 	Wits         int                    // Number of witnesses
 	Comm         CommunicationInterface // interface for communicating with other nodes
-	CurrentMsg   Message                // Message which the node is waiting for acks
-	History      []Message              // History of received messages by a node
+	ConvertMsg   MessageInterface
+	CurrentMsg   Message   // Message which the node is waiting for acks
+	History      []Message // History of received messages by a node
 
 }
 
 // CommunicationInterface is a interface used for communicating with transport layer.
 type CommunicationInterface interface {
-	Send(Message, int) // Send a message to a specific node
-	Broadcast(Message) // Broadcast messages to other nodes
-	Receive() *Message // Blocking receive
-	Disconnect()       // Disconnect node
-	Reconnect(string)  // Reconnect node
+	Send([]byte, int) // Send a message to a specific node
+	Broadcast([]byte) // Broadcast messages to other nodes
+	Receive() *[]byte // Blocking receive
+	Disconnect()      // Disconnect node
+	Reconnect(string) // Reconnect node
 }

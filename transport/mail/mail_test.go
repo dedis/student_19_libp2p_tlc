@@ -4,12 +4,10 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/dedis/student_19_libp2p_tlc/model"
-	"github.com/dedis/student_19_libp2p_tlc/transport/libp2p_pubsub"
-	"github.com/dedis/student_19_libp2p_tlc/transport/libp2p_pubsub/protobuf"
+	"github.com/dedis/student_19_libp2p_tlc/protobuf/messagepb"
 	"github.com/dedis/student_19_libp2p_tlc/transport/test_utils"
 	"github.com/emersion/go-imap"
 	"github.com/emersion/go-imap/client"
-	"github.com/golang/protobuf/proto"
 	"log"
 	"os"
 	"testing"
@@ -54,6 +52,7 @@ func setup(n int) []*model.Node {
 			ThresholdWit: n,
 			ThresholdAck: n,
 			Acks:         0,
+			ConvertMsg:   &messagepb.Convert{},
 			Comm:         comm,
 			History:      make([]model.Message, 0)}
 	}
@@ -128,11 +127,7 @@ func TestMail(t *testing.T) {
 
 func TestMailProto(t *testing.T) {
 	msg := model.Message{Source: 2, Step: 4, MsgType: model.Raw, History: []model.Message{}}
-	msgBytes, err := proto.Marshal(libp2p_pubsub.ConvertModelMessage(msg))
-	if err != nil {
-		fmt.Printf("Error : %v\n", err)
-		return
-	}
+	msgBytes := *messagepb.Convert{}.MessageToBytes(msg)
 	fmt.Println("BYTES", msgBytes)
 	fmt.Println(utf8.Valid(msgBytes))
 	SendMail(usernames[0], usernames, "", msgBytes, passwords[0])
@@ -140,10 +135,5 @@ func TestMailProto(t *testing.T) {
 	//data := GetMail(usernames[2], passwords[2], 1)
 	data := GetMailSubject(StartImapSession(usernames[2], passwords[2]), 1)
 	fmt.Println("BYTES", data)
-	var pbMessage protobuf.PbMessage
-	err = proto.Unmarshal(data, &pbMessage)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println(libp2p_pubsub.ConvertPbMessage(&pbMessage))
+	fmt.Println(messagepb.Convert{}.BytesToModelMessage(data))
 }

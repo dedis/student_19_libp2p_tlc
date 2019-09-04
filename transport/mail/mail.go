@@ -3,12 +3,8 @@ package mail
 import (
 	"crypto/tls"
 	"fmt"
-	"github.com/dedis/student_19_libp2p_tlc/model"
-	"github.com/dedis/student_19_libp2p_tlc/transport/libp2p_pubsub"
-	"github.com/dedis/student_19_libp2p_tlc/transport/libp2p_pubsub/protobuf"
 	"github.com/emersion/go-imap"
 	"github.com/emersion/go-imap/client"
-	"github.com/golang/protobuf/proto"
 	"gopkg.in/gomail.v2"
 	"io/ioutil"
 	netmail "net/mail"
@@ -27,26 +23,19 @@ type mail struct {
 }
 
 // Broadcast sends mail to all addresses inside AddressBook
-func (m *mail) Broadcast(msg model.Message) {
-	// Sending mail to all other nodes
-	// TODO separate proto related files and functions into an independent package
-	msgBytes, err := proto.Marshal(libp2p_pubsub.ConvertModelMessage(msg))
-	if err != nil {
-		fmt.Printf("Error : %v\n", err)
-		return
-	}
+func (m *mail) Broadcast(msgBytes []byte) {
 	fmt.Println(m.username, msgBytes)
 	SendMail(m.username, m.addressBook, "", msgBytes, m.password)
 }
 
 // Send sends a message to a node with specific id
-func (m *mail) Send(msg model.Message, id int) {
+func (m *mail) Send(msgBytes []byte, id int) {
 	// Using Broadcast
-	m.Broadcast(msg)
+	m.Broadcast(msgBytes)
 }
 
 // Receive gets new mail from inbox
-func (m *mail) Receive() *model.Message {
+func (m *mail) Receive() *[]byte {
 	msgBytes := GetMailSubject(m.imapSession, m.recentIndex)
 	if msgBytes == nil {
 		time.Sleep(2 * time.Second)
@@ -54,14 +43,7 @@ func (m *mail) Receive() *model.Message {
 	}
 	fmt.Println("received :", m.username, msgBytes)
 	m.recentIndex += 1
-	var pbMessage protobuf.PbMessage
-	err := proto.Unmarshal(msgBytes, &pbMessage)
-	if err != nil {
-		fmt.Printf("Error : %v\n", err)
-		return nil
-	}
-	modelMsg := libp2p_pubsub.ConvertPbMessage(&pbMessage)
-	return &modelMsg
+	return &msgBytes
 }
 func (c *mail) Disconnect() {
 }

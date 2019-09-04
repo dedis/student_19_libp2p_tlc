@@ -28,13 +28,14 @@ func (node *Node) Advance(step int) {
 		History: make([]Message, 0),
 	}
 	node.CurrentMsg = msg
-	node.Comm.Broadcast(msg)
+	msgBytes := node.ConvertMsg.MessageToBytes(msg)
+	node.Comm.Broadcast(*msgBytes)
 }
 
 // waitForMsg waits for upcoming messages and then decides the next action with respect to msg's contents.
 func (node *Node) WaitForMsg(stop int) {
 	end := false
-	msgChan := make(chan *Message, ChanLen)
+	msgChan := make(chan *[]byte, ChanLen)
 	for node.TimeStep <= stop && !end {
 		// For now we assume that the underlying receive function is blocking
 		rcvdMsg := node.Comm.Receive()
@@ -44,7 +45,9 @@ func (node *Node) WaitForMsg(stop int) {
 		msgChan <- rcvdMsg
 
 		go func() {
-			msg := <-msgChan
+			msgBytes := <-msgChan
+
+			msg := node.ConvertMsg.BytesToModelMessage(*msgBytes)
 
 			fmt.Printf("node %d in step %d ;Received MSG with step %d type %d source: %d\n", node.Id, node.TimeStep, msg.Step, msg.MsgType, msg.Source)
 
@@ -61,7 +64,8 @@ func (node *Node) WaitForMsg(stop int) {
 					msg.MsgType = Catchup
 					msg.Step = node.TimeStep
 					msg.History = node.History
-					node.Comm.Broadcast(*msg)
+					msgBytes := node.ConvertMsg.MessageToBytes(*msg)
+					node.Comm.Broadcast(*msgBytes)
 				}
 				return
 			}
@@ -106,7 +110,8 @@ func (node *Node) WaitForMsg(stop int) {
 				if node.Acks >= node.ThresholdAck {
 					// Send witnessed message if the acks are more than threshold
 					msg.MsgType = Wit
-					node.Comm.Broadcast(*msg)
+					msgBytes := node.ConvertMsg.MessageToBytes(*msg)
+					node.Comm.Broadcast(*msgBytes)
 				}
 
 			case Raw:
@@ -121,12 +126,14 @@ func (node *Node) WaitForMsg(stop int) {
 
 					// ALso send ack for the received message
 					msg.MsgType = Ack
-					node.Comm.Send(*msg, msg.Source)
+					msgBytes := node.ConvertMsg.MessageToBytes(*msg)
+					node.Comm.Send(*msgBytes, msg.Source)
 
 				} else if msg.Step == node.TimeStep {
 					msg.MsgType = Ack
 					fmt.Printf("ACKing by node %d, for msg %d\n", node.Id, msg.Source)
-					node.Comm.Send(*msg, msg.Source)
+					msgBytes := node.ConvertMsg.MessageToBytes(*msg)
+					node.Comm.Send(*msgBytes, msg.Source)
 				}
 
 			case Catchup:

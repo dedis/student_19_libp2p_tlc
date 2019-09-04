@@ -14,6 +14,7 @@ type Node struct {
 	CurrentMsg   MessageWithSig         // Message which the node is waiting for acks
 	History      []MessageWithSig       // History of received messages by a node
 	PublicKeys   []kyber.Point          // Public keys of all nodes
+	privateKey   kyber.Scalar           // Private key of the node
 }
 
 // CommunicationInterface is a interface used for communicating with transport layer.

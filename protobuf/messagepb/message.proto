@@ -1,5 +1,5 @@
 syntax = "proto2";
-package libp2p_pubsub;
+package messagepb;
 
 enum Msg_type {
     Raw = 0;
