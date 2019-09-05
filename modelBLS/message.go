@@ -17,3 +17,8 @@ type MessageWithSig struct {
 	Signature []byte
 	Mask      []byte
 }
+
+type MessageInterface interface {
+	MessageToBytes(sig MessageWithSig) *[]byte
+	BytesToModelMessage([]byte) *MessageWithSig
+}

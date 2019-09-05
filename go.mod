@@ -13,5 +13,6 @@ require (
 	github.com/libp2p/go-libp2p-quic-transport v0.1.1
 	github.com/libp2p/go-ws-transport v0.1.0
 	github.com/multiformats/go-multiaddr v0.0.4
+	go.dedis.ch/kyber/v3 v3.0.4
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
 )

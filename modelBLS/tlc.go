@@ -1,7 +1,10 @@
 package modelBLS
 
 import (
+	"crypto/sha256"
 	"fmt"
+	"go.dedis.ch/kyber/v3/sign"
+	"go.dedis.ch/kyber/v3/sign/bdn"
 	"log"
 	"strconv"
 	"time"
@@ -28,13 +31,14 @@ func (node *Node) Advance(step int) {
 		History: make([]MessageWithSig, 0),
 	}
 	node.CurrentMsg = msg
-	node.Comm.Broadcast(msg)
+	msgBytes := node.ConvertMsg.MessageToBytes(msg)
+	node.Comm.Broadcast(*msgBytes)
 }
 
 // waitForMsg waits for upcoming messages and then decides the next action with respect to msg's contents.
 func (node *Node) WaitForMsg(stop int) {
 	end := false
-	msgChan := make(chan *MessageWithSig, ChanLen)
+	msgChan := make(chan *[]byte, ChanLen)
 	for node.TimeStep <= stop && !end {
 		// For now we assume that the underlying receive function is blocking
 		rcvdMsg := node.Comm.Receive()
@@ -44,7 +48,9 @@ func (node *Node) WaitForMsg(stop int) {
 		msgChan <- rcvdMsg
 
 		go func() {
-			msg := <-msgChan
+			msgBytes := <-msgChan
+
+			msg := node.ConvertMsg.BytesToModelMessage(*msgBytes)
 
 			fmt.Printf("node %d in step %d ;Received MSG with step %d type %d source: %d\n", node.Id, node.TimeStep, msg.Step, msg.MsgType, msg.Source)
 
@@ -61,16 +67,50 @@ func (node *Node) WaitForMsg(stop int) {
 					msg.MsgType = Catchup
 					msg.Step = node.TimeStep
 					msg.History = node.History
-					node.Comm.Broadcast(*msg)
+					msgBytes := node.ConvertMsg.MessageToBytes(*msg)
+					node.Comm.Broadcast(*msgBytes)
 				}
 				return
 			}
 
 			switch msg.MsgType {
 			case Wit:
+
 				if msg.Step > node.TimeStep+1 {
 					return
-				} else if msg.Step == node.TimeStep+1 { // Node needs to catch up with the message
+				}
+
+				// Verify that it's really witnessed by majority of nodes by checking the signature and number of them
+				sig := msg.Signature
+				mask := msg.Mask
+
+				msg.Signature = nil
+				msg.Mask = nil
+				msg.MsgType = Raw
+
+				h := sha256.New()
+				h.Write(*node.ConvertMsg.MessageToBytes(*msg))
+				msgHash := h.Sum(nil)
+
+				keyMask, _ := sign.NewMask(node.Suite, node.PublicKeys, nil)
+				err := keyMask.SetMask(mask)
+				if err != nil {
+					return
+				}
+				// Only new place!
+				if keyMask.CountEnabled() < node.ThresholdAck {
+					return
+				}
+
+				aggPubKey, err := bdn.AggregatePublicKeys(node.Suite, keyMask)
+
+				// Verify message signature
+				err = bdn.Verify(node.Suite, aggPubKey, msgHash, sig)
+				if err != nil {
+					return
+				}
+
+				if msg.Step == node.TimeStep+1 { // Node needs to catch up with the message
 					// Update nodes local history. Append history from message to local history
 					node.History = append(node.History, *msg)
 
@@ -100,13 +140,55 @@ func (node *Node) WaitForMsg(stop int) {
 				}
 				fmt.Printf("received ACK. node %d !\n", node.Id)
 
+				// TODO First you have to verify signature! you have to change sig and type field for verification.
+				sig := msg.Signature
+				mask := msg.Mask
+
+				msg.Signature = nil
+				msg.Mask = nil
+				msg.MsgType = Raw
+
+				h := sha256.New()
+				h.Write(*node.ConvertMsg.MessageToBytes(*msg))
+				msgHash := h.Sum(nil)
+
+				keyMask, _ := sign.NewMask(node.Suite, node.PublicKeys, nil)
+				err := keyMask.SetMask(mask)
+				if err != nil {
+					return
+				}
+
+				aggPubKey, err := bdn.AggregatePublicKeys(node.Suite, keyMask)
+
+				// Verify message signature
+				err = bdn.Verify(node.Suite, aggPubKey, msgHash, sig)
+				if err != nil {
+					return
+				}
+
+				// add message's mask to existing mask
+				err = node.sigMask.Merge(mask)
+
+				//
+
 				// Count acks toward the threshold
 				node.Acks += 1
 
+				// Add signature to the list of signatures
+				node.signatures = append(node.signatures, sig)
+
+				// TODO a flaw here! Only send the TW message once not after every ack after reaching majority!
 				if node.Acks >= node.ThresholdAck {
 					// Send witnessed message if the acks are more than threshold
 					msg.MsgType = Wit
-					node.Comm.Broadcast(*msg)
+
+					// Add aggregate signatures to message
+					msg.Mask = node.sigMask.Mask()
+					aggSignature, _ := bdn.AggregateSignatures(node.Suite, node.signatures, node.sigMask)
+					msg.Signature, _ = aggSignature.MarshalBinary()
+
+					msgBytes := node.ConvertMsg.MessageToBytes(*msg)
+					node.Comm.Broadcast(*msgBytes)
 				}
 
 			case Raw:
@@ -118,16 +200,34 @@ func (node *Node) WaitForMsg(stop int) {
 
 					// Advance
 					node.Advance(msg.Step)
-
-					// ALso send ack for the received message
-					msg.MsgType = Ack
-					node.Comm.Send(*msg, msg.Source)
-
-				} else if msg.Step == node.TimeStep {
-					msg.MsgType = Ack
-					fmt.Printf("ACKing by node %d, for msg %d\n", node.Id, msg.Source)
-					node.Comm.Send(*msg, msg.Source)
 				}
+				//fmt.Printf("ACKing by node %d, for msg %d\n", node.Id, msg.Source)
+
+				// Node has to sign message hash
+				h := sha256.New()
+				h.Write(*msgBytes)
+				msgHash := h.Sum(nil)
+
+				signature, err := bdn.Sign(node.Suite, node.PrivateKey, msgHash)
+				if err != nil {
+					panic(err)
+				}
+
+				// Adding signature and ack to message. These fields were empty when message got signed
+				msg.Signature = signature
+
+				// Add mask for the signature
+				keyMask, _ := sign.NewMask(node.Suite, node.PublicKeys, nil)
+				err = keyMask.SetBit(node.Id, true)
+				if err != nil {
+					panic(err)
+				}
+				msg.Mask = keyMask.Mask()
+
+				// Send ack for the received message
+				msg.MsgType = Ack
+				msgBytes := node.ConvertMsg.MessageToBytes(*msg)
+				node.Comm.Send(*msgBytes, msg.Source)
 
 			case Catchup:
 				if msg.Source == node.CurrentMsg.Source && msg.Step > node.TimeStep {

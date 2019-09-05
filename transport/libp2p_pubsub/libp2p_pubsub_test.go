@@ -2,10 +2,15 @@ package libp2p_pubsub
 
 import (
 	"fmt"
+	"github.com/dedis/student_19_libp2p_tlc/modelBLS"
+	messageSigpb "github.com/dedis/student_19_libp2p_tlc/protobuf/messageWithSig"
 	"github.com/dedis/student_19_libp2p_tlc/protobuf/messagepb"
 	"github.com/dedis/student_19_libp2p_tlc/transport/test_utils"
+	"go.dedis.ch/kyber/v3"
+	"go.dedis.ch/kyber/v3/pairing"
 	"log"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -267,4 +272,108 @@ func TestWithThreeGroups(t *testing.T) {
 	logFile, _ := os.OpenFile("log9.log", os.O_RDWR|os.O_CREATE, 0666)
 	model.Logger1 = log.New(logFile, "", log.Ltime|log.Lmicroseconds)
 	simpleTest(t, 11, 9900, 8, ThreeGroups)
+}
+
+func TestBLS(t *testing.T) {
+	logFile, _ := os.OpenFile("logBLS.log", os.O_RDWR|os.O_CREATE, 0666)
+	modelBLS.Logger1 = log.New(logFile, "", log.Ltime|log.Lmicroseconds)
+	Delayed = false
+	simpleTestBLS(t, 5, 9900, 3)
+}
+
+func simpleTestBLS(t *testing.T, n int, initialPort int, stop int) {
+	nodes, hosts := setupHostsBLS(n, initialPort)
+
+	defer func() {
+		fmt.Println("Closing hosts")
+		for _, h := range hosts {
+			_ = (*h).Close()
+		}
+	}()
+
+	setupNetworkTopology(hosts)
+	// PubSub is ready and we can start our algorithm
+	StartTestBLS(nodes, stop, 0)
+	LogOutputBLS(t, nodes)
+}
+
+func setupHostsBLS(n int, initialPort int) ([]*modelBLS.Node, []*core.Host) {
+	// nodes used in tlc model
+	nodes := make([]*modelBLS.Node, n)
+
+	// hosts used in libp2p communications
+	hosts := make([]*core.Host, n)
+
+	publicKeys := make([]kyber.Point, 0)
+	privateKeys := make([]kyber.Scalar, 0)
+	suite := pairing.NewSuiteBn256()
+
+	for range nodes {
+		prvKey := suite.Scalar().Pick(suite.RandomStream())
+		privateKeys = append(privateKeys, prvKey)
+		// list of public keys
+		publicKeys = append(publicKeys, suite.Point().Mul(prvKey, nil))
+	}
+
+	for i := range nodes {
+
+		//var comm model.CommunicationInterface
+		var comm *libp2pPubSub
+		comm = new(libp2pPubSub)
+		comm.topic = "TLC"
+
+		// creating libp2p hosts
+		host := comm.CreatePeer(i, initialPort+i)
+		hosts[i] = host
+
+		// creating pubsubs
+		comm.InitializePubSub(*host)
+		comm.InitializeVictim(false)
+
+		//////
+
+		nodes[i] = &modelBLS.Node{
+			Id:           i,
+			TimeStep:     0,
+			ThresholdWit: n/2 + 1,
+			ThresholdAck: n/2 + 1,
+			Acks:         0,
+			ConvertMsg:   &messageSigpb.Convert{},
+			Comm:         comm,
+			History:      make([]modelBLS.MessageWithSig, 0),
+			PublicKeys:   publicKeys,
+			PrivateKey:   privateKeys[i],
+			Suite:        suite,
+		}
+
+	}
+	return nodes, hosts
+}
+
+// StartTest is used for starting tlc nodes
+func StartTestBLS(nodes []*modelBLS.Node, stop int, fails int) {
+	wg := &sync.WaitGroup{}
+
+	for _, node := range nodes {
+		node.Advance(0)
+	}
+	for _, node := range nodes {
+		wg.Add(1)
+		go runNodeBLS(node, stop, wg)
+	}
+	wg.Add(-fails)
+	wg.Wait()
+	fmt.Println("The END")
+}
+
+func LogOutputBLS(t *testing.T, nodes []*modelBLS.Node) {
+	for i := range nodes {
+		t.Logf("nodes: %d , TimeStep : %d", i, nodes[i].TimeStep)
+		model.Logger1.Printf("%d,%d\n", i, nodes[i].TimeStep)
+	}
+}
+
+func runNodeBLS(node *modelBLS.Node, stop int, wg *sync.WaitGroup) {
+	defer wg.Done()
+	node.WaitForMsg(stop)
 }

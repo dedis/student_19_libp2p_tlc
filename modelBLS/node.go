@@ -1,6 +1,10 @@
 package modelBLS
 
-import "go.dedis.ch/kyber/v3"
+import (
+	"go.dedis.ch/kyber/v3"
+	"go.dedis.ch/kyber/v3/pairing"
+	"go.dedis.ch/kyber/v3/sign"
+)
 
 // Node is the struct used for keeping everything related to a node in TLC.
 type Node struct {
@@ -11,17 +15,21 @@ type Node struct {
 	Acks         int                    // Number of acknowledges
 	Wits         int                    // Number of witnesses
 	Comm         CommunicationInterface // interface for communicating with other nodes
-	CurrentMsg   MessageWithSig         // Message which the node is waiting for acks
-	History      []MessageWithSig       // History of received messages by a node
-	PublicKeys   []kyber.Point          // Public keys of all nodes
-	privateKey   kyber.Scalar           // Private key of the node
+	ConvertMsg   MessageInterface
+	CurrentMsg   MessageWithSig   // Message which the node is waiting for acks
+	History      []MessageWithSig // History of received messages by a node
+	PublicKeys   []kyber.Point    // Public keys of all nodes
+	signatures   [][]byte
+	sigMask      *sign.Mask
+	PrivateKey   kyber.Scalar // Private key of the node
+	Suite        *pairing.SuiteBn256
 }
 
 // CommunicationInterface is a interface used for communicating with transport layer.
 type CommunicationInterface interface {
-	Send(MessageWithSig, int)     // Send a message to a specific node
-	Broadcast(sig MessageWithSig) // Broadcast messages to other nodes
-	Receive() *MessageWithSig     // Blocking receive
-	Disconnect()                  // Disconnect node
-	Reconnect(string)             // Reconnect node
+	Send([]byte, int) // Send a message to a specific node
+	Broadcast([]byte) // Broadcast messages to other nodes
+	Receive() *[]byte // Blocking receive
+	Disconnect()      // Disconnect node
+	Reconnect(string) // Reconnect node
 }
