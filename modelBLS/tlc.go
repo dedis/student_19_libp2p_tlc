@@ -103,10 +103,15 @@ func (node *Node) WaitForMsg(stop int) {
 				}
 
 				aggPubKey, err := bdn.AggregatePublicKeys(node.Suite, keyMask)
+				if err != nil {
+					panic(err)
+				}
 
 				// Verify message signature
+				fmt.Println("RCVD AggSig: ", sig, "RCVD AggPub :", aggPubKey, "RCVD Hash :", msgHash)
 				err = bdn.Verify(node.Suite, aggPubKey, msgHash, sig)
 				if err != nil {
+					panic(err)
 					return
 				}
 
@@ -132,13 +137,11 @@ func (node *Node) WaitForMsg(stop int) {
 				}
 
 			case Ack:
-				fmt.Printf("received ACK. node %d %d\n", node.Id, msg.Source)
-
 				// Checking that the ack is for message of this step
-				if (msg.Source != node.CurrentMsg.Source) || (msg.Step != node.CurrentMsg.Step) {
+				if (msg.Source != node.CurrentMsg.Source) || (msg.Step != node.CurrentMsg.Step) || (node.Acks >= node.ThresholdAck) {
 					return
 				}
-				fmt.Printf("received ACK. node %d !\n", node.Id)
+				fmt.Printf("received ACK. node %d %d\n", node.Id, msg.Source)
 
 				// TODO First you have to verify signature! you have to change sig and type field for verification.
 				sig := msg.Signature
@@ -152,22 +155,28 @@ func (node *Node) WaitForMsg(stop int) {
 				h.Write(*node.ConvertMsg.MessageToBytes(*msg))
 				msgHash := h.Sum(nil)
 
+				//fmt.Println("RCVD hash :",msgHash," MASK",mask)
+
 				keyMask, _ := sign.NewMask(node.Suite, node.PublicKeys, nil)
 				err := keyMask.SetMask(mask)
 				if err != nil {
+					panic(err)
 					return
 				}
 
-				aggPubKey, err := bdn.AggregatePublicKeys(node.Suite, keyMask)
+				//fmt.Println(node.PublicKeys[keyMask.IndexOfNthEnabled(0)],"		",sig)
+				//fmt.Println(node.PublicKeys)
 
+				PubKey := node.PublicKeys[keyMask.IndexOfNthEnabled(0)]
 				// Verify message signature
-				err = bdn.Verify(node.Suite, aggPubKey, msgHash, sig)
+				err = bdn.Verify(node.Suite, PubKey, msgHash, sig)
 				if err != nil {
+					panic(err)
 					return
 				}
 
 				// add message's mask to existing mask
-				err = node.sigMask.Merge(mask)
+				err = node.SigMask.Merge(mask)
 
 				//
 
@@ -175,7 +184,7 @@ func (node *Node) WaitForMsg(stop int) {
 				node.Acks += 1
 
 				// Add signature to the list of signatures
-				node.signatures = append(node.signatures, sig)
+				node.Signatures = append(node.Signatures, sig)
 
 				// TODO a flaw here! Only send the TW message once not after every ack after reaching majority!
 				if node.Acks >= node.ThresholdAck {
@@ -183,9 +192,27 @@ func (node *Node) WaitForMsg(stop int) {
 					msg.MsgType = Wit
 
 					// Add aggregate signatures to message
-					msg.Mask = node.sigMask.Mask()
-					aggSignature, _ := bdn.AggregateSignatures(node.Suite, node.signatures, node.sigMask)
-					msg.Signature, _ = aggSignature.MarshalBinary()
+					msg.Mask = node.SigMask.Mask()
+					aggSignature, err := bdn.AggregateSignatures(node.Suite, node.Signatures, node.SigMask)
+					if err != nil {
+						panic(err)
+					}
+					msg.Signature, err = aggSignature.MarshalBinary()
+					if err != nil {
+						panic(err)
+					}
+
+					aggPubKey, err := bdn.AggregatePublicKeys(node.Suite, node.SigMask)
+
+					// TODO signature is invalid here!
+					fmt.Println("AggSig: ", msg.Signature, "AggPub :", aggPubKey, "Hash :", msgHash, "mask :", msg.Mask)
+					err = bdn.Verify(node.Suite, aggPubKey, msgHash, msg.Signature)
+					if err != nil {
+						fmt.Println("PANIC AggSig: ", msg.Signature, "AggPub :", aggPubKey, "Hash :", msgHash, "mask :", msg.Mask)
+						panic(err)
+						return
+					}
+					fmt.Println("SIG OKAY")
 
 					msgBytes := node.ConvertMsg.MessageToBytes(*msg)
 					node.Comm.Broadcast(*msgBytes)
@@ -207,6 +234,7 @@ func (node *Node) WaitForMsg(stop int) {
 				h := sha256.New()
 				h.Write(*msgBytes)
 				msgHash := h.Sum(nil)
+				//fmt.Println("SENT Hash :",msgHash)
 
 				signature, err := bdn.Sign(node.Suite, node.PrivateKey, msgHash)
 				if err != nil {

@@ -19,8 +19,8 @@ type Node struct {
 	CurrentMsg   MessageWithSig   // Message which the node is waiting for acks
 	History      []MessageWithSig // History of received messages by a node
 	PublicKeys   []kyber.Point    // Public keys of all nodes
-	signatures   [][]byte
-	sigMask      *sign.Mask
+	Signatures   [][]byte
+	SigMask      *sign.Mask
 	PrivateKey   kyber.Scalar // Private key of the node
 	Suite        *pairing.SuiteBn256
 }
