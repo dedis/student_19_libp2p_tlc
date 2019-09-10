@@ -143,7 +143,7 @@ func setupNetworkTopology(hosts []*core.Host) {
 	*/
 	for i := 0; i < n; i++ {
 		connectHostToPeer(*hosts[i], getLocalhostAddress(*hosts[(i+1)%n]))
-		connectHostToPeer(*hosts[i], getLocalhostAddress(*hosts[(i+2)%n]))
+		//connectHostToPeer(*hosts[i], getLocalhostAddress(*hosts[(i+2)%n]))
 		//connectHostToPeer(*hosts[i], getLocalhostAddress(*hosts[(i+3)%n]))
 		//connectHostToPeer(*hosts[i], getLocalhostAddress(*hosts[(i+4)%n]))
 	}
@@ -279,7 +279,7 @@ func TestBLS(t *testing.T) {
 	logFile, _ := os.OpenFile("logBLS.log", os.O_RDWR|os.O_CREATE, 0666)
 	modelBLS.Logger1 = log.New(logFile, "", log.Ltime|log.Lmicroseconds)
 	Delayed = false
-	simpleTestBLS(t, 3, 9900, 3)
+	simpleTestBLS(t, 5, 9900, 3)
 }
 
 func simpleTestBLS(t *testing.T, n int, initialPort int, stop int) {
@@ -316,6 +316,8 @@ func setupHostsBLS(n int, initialPort int) ([]*modelBLS.Node, []*core.Host) {
 		publicKeys = append(publicKeys, suite.Point().Mul(prvKey, nil))
 	}
 
+	fmt.Println(publicKeys)
+
 	for i := range nodes {
 
 		//var comm model.CommunicationInterface
@@ -342,7 +344,7 @@ func setupHostsBLS(n int, initialPort int) ([]*modelBLS.Node, []*core.Host) {
 			ConvertMsg:   &messageSigpb.Convert{},
 			Comm:         comm,
 			History:      make([]modelBLS.MessageWithSig, 0),
-			Signatures:   make([][]byte, 0),
+			Signatures:   make([][]byte, n),
 			SigMask:      mask,
 			PublicKeys:   publicKeys,
 			PrivateKey:   privateKeys[i],
@@ -372,7 +374,7 @@ func StartTestBLS(nodes []*modelBLS.Node, stop int, fails int) {
 func LogOutputBLS(t *testing.T, nodes []*modelBLS.Node) {
 	for i := range nodes {
 		t.Logf("nodes: %d , TimeStep : %d", i, nodes[i].TimeStep)
-		model.Logger1.Printf("%d,%d\n", i, nodes[i].TimeStep)
+		modelBLS.Logger1.Printf("%d,%d\n", i, nodes[i].TimeStep)
 	}
 }
 
