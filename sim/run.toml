@@ -1,0 +1,9 @@
+Servers = 30
+Simulation = "TlcTest"
+BF = 2
+Rounds = 4
+Suite = "Ed25519"
+PreScript = "pre.sh"
+
+Hosts,	  Delay,	Ratio,	Other
+30,		  50,		0.1,	"Other kinds of data"
