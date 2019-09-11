@@ -21,3 +21,14 @@ protocols.
 In this implementation, messages will be sent using mail protocols. SMTP is used for ongoing mails and IMAP is used for 
 receiving incoming mails. Mail server implementation is not present in this repository and anyone interested in using 
 mail-based implementation needs to setup a working mail server. You may use iRedMail to start a mail server.
+
+## Repository structure
+    .
+    ├── model                        TLC protocol implementation with abstract transport layer
+    ├── transport                    Contains differnent transport layer implementations
+        ├── channel                  Go channel based transport
+        ├── libp2p_pubsub            Libp2p-based implementataion using pubsub
+        └── mail                     Mail-based implementation
+        
+
+## Usage
