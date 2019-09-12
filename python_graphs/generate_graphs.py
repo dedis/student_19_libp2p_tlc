@@ -29,5 +29,5 @@ if __name__ == '__main__':
 
     plt.xlabel("time in seconds")
     plt.ylabel("time steps")
-    # plt.savefig("../graphs/" + Filename + ".png")
+    plt.savefig("../graphs/" + Filename + ".png")
     plt.show()
