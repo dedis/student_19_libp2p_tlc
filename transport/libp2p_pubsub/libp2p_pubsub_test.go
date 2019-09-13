@@ -46,8 +46,8 @@ func setupHosts(n int, initialPort int, failureModel FailureModel) ([]*model.Nod
 	for i := range nodes {
 
 		//var comm model.CommunicationInterface
-		var comm *libp2pPubSub
-		comm = new(libp2pPubSub)
+		var comm *Libp2pPubSub
+		comm = new(Libp2pPubSub)
 		comm.topic = "TLC"
 
 		// creating libp2p hosts
@@ -321,8 +321,8 @@ func setupHostsBLS(n int, initialPort int) ([]*modelBLS.Node, []*core.Host) {
 	for i := range nodes {
 
 		//var comm model.CommunicationInterface
-		var comm *libp2pPubSub
-		comm = new(libp2pPubSub)
+		var comm *Libp2pPubSub
+		comm = new(Libp2pPubSub)
 		comm.topic = "TLC"
 
 		// creating libp2p hosts
