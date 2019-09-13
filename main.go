@@ -1,15 +1,22 @@
 package main
 
 import (
+	"crypto/ecdsa"
 	"fmt"
+	"github.com/btcsuite/btcd/btcec"
+	"github.com/libp2p/go-libp2p-core/crypto"
+	"github.com/libp2p/go-libp2p-core/peer"
+	"go.dedis.ch/onet/v3"
 	"log"
+	mrand "math/rand"
 	"os"
 	"strconv"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/dedis/student_19_libp2p_tlc/protobuf/messagepb"
 	Libp2p "github.com/dedis/student_19_libp2p_tlc/transport/libp2p_pubsub"
-	"github.com/dedis/student_19_libp2p_tlc/transport/test_utils"
 
 	"github.com/dedis/student_19_libp2p_tlc/model"
 	core "github.com/libp2p/go-libp2p-core"
@@ -45,7 +52,7 @@ func setupHost(n int, id int, ip string, port string, failureModel FailureModel)
 	comm.InitializeVictim(false)
 
 	node := &model.Node{
-		Id:           i,
+		Id:           id,
 		TimeStep:     0,
 		ThresholdWit: n/2 + 1,
 		ThresholdAck: n/2 + 1,
@@ -59,91 +66,51 @@ func setupHost(n int, id int, ip string, port string, failureModel FailureModel)
 }
 
 // setupNetworkTopology sets up a simple network topology for test.
-func setupNetworkTopology(hosts []*core.Host) {
+func setupNetworkTopology(n int, id int, host *core.Host, r onet.Roster) {
+	var addr string
 
-	// Connect hosts to each other in a topology
-	n := len(hosts)
-	/*
-		for i := 0; i< n; i++ {
-			for j,nxtHost := range hosts {
-				if j == i{
-					continue
-				}
-				connectHostToPeer(*hosts[i], getLocalhostAddress(*nxtHost))
-			}
-		}
-	*/
-	for i := 0; i < n; i++ {
-		connectHostToPeer(*hosts[i], getLocalhostAddress(*hosts[(i+1)%n]))
-		//connectHostToPeer(*hosts[i], getLocalhostAddress(*hosts[(i+2)%n]))
-		//connectHostToPeer(*hosts[i], getLocalhostAddress(*hosts[(i+3)%n]))
-		//connectHostToPeer(*hosts[i], getLocalhostAddress(*hosts[(i+4)%n]))
+	for i := 1; i <= 4; i++ {
+		next := (id + i) % n
+		address := strings.Split(string(r.List[next].Address), ":")
+		r := mrand.New(mrand.NewSource(int64(next)))
+		prvKey, _ := ecdsa.GenerateKey(btcec.S256(), r)
+		sk := (*crypto.Secp256k1PrivateKey)(prvKey)
+
+		id, _ := peer.IDFromPrivateKey(sk)
+		addr = fmt.Sprintf("/ip4/%s/tcp/%s/p2p/%s", address[0], address[1], id.Pretty())
+		connectHostToPeer(*host, addr)
 	}
-	// Wait so that subscriptions on topic will be done and all peers will "know" of all other peers
 	time.Sleep(time.Second * 2)
 
 }
 
-func minorityFailure(nodes []*model.Node, n int) int {
-	nFail := (n - 1) / 2
-	//nFail := 4
-	go func(nodes []*model.Node, nFail int) {
-		time.Sleep(FailureDelay * time.Second)
-		failures(nodes, nFail)
-	}(nodes, nFail)
-
-	return nFail
-}
-
-func majorityFailure(nodes []*model.Node, n int) int {
-	nFail := n/2 + 1
-	go func(nodes []*model.Node, nFail int) {
-		time.Sleep(FailureDelay * time.Second)
-		failures(nodes, nFail)
-	}(nodes, nFail)
-	return nFail
-}
-
-func failures(nodes []*model.Node, nFail int) {
-	for i, node := range nodes {
-		if i < nFail {
-			node.Comm.Disconnect()
-		}
-	}
-}
-
 func simpleTest(n int, id int, ip string, port string, stop int, failureModel FailureModel) {
-	var nFail int
-	nodes, hosts := setupHost(n, id, ip, port, failureModel)
+	node, host := setupHost(n, id, ip, port, failureModel)
 
 	defer func() {
-		fmt.Println("Closing hosts")
-		for _, h := range hosts {
-			_ = (*h).Close()
-		}
+		_ = (*host).Close()
 	}()
 
-	setupNetworkTopology(hosts)
-
-	// Put failures here
-	switch failureModel {
-	case MinorFailure:
-		nFail = minorityFailure(nodes, n)
-	case MajorFailure:
-		nFail = majorityFailure(nodes, n)
-	case RejoiningMinorityFailure:
-		nFail = (n-1)/2 - 1
-	case RejoiningMajorityFailure:
-		nFail = (n+1)/2 - 1
-	case LeaveRejoin:
-		nFail = (n-1)/2 - 1
-	case ThreeGroups:
-		nFail = (n - 1) / 2
-	}
+	r := onet.Roster{}
+	setupNetworkTopology(n, id, host, r)
 
 	// PubSub is ready and we can start our algorithm
-	test_utils.StartTest(nodes, stop, nFail)
-	test_utils.LogOutput(t, nodes)
+	StartTest(node, stop)
+	//test_utils.LogOutput(t, nodes)
+}
+
+// StartTest is used for starting tlc nodes
+func StartTest(node *model.Node, stop int) {
+	wg := &sync.WaitGroup{}
+	node.Advance(0)
+	wg.Add(1)
+	go func(node *model.Node, stop int, wg *sync.WaitGroup) {
+		defer wg.Done()
+		node.WaitForMsg(stop)
+	}(node, stop, wg)
+
+	wg.Wait()
+	fmt.Println("The END")
 }
 
 // Testing TLC with majority thresholds with no node failures
@@ -153,5 +120,11 @@ func main() {
 	model.Logger1 = log.New(logFile, "", log.Ltime|log.Lmicroseconds)
 	Libp2p.Delayed = false
 	id, _ := strconv.Atoi(os.Args[1])
+	//r := onet.Roster{}
+	//address := strings.Split(string(r.List[id].Address),":")
+	//ip := address[0]
+	//port := address[1]
+	ip := "127.0.0.1"
+	port := strconv.Itoa(9000 + id)
 	simpleTest(11, id, ip, port, 10, NoFailure)
 }
