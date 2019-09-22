@@ -2,7 +2,7 @@
 link of the [presentation](https://docs.google.com/presentation/d/1RNHOncvFA8lxpKP2bQU5JFEXrFGsbp3lpjf-URfH3xQ/edit?usp=sharing).
 ## Table of Contents
 1. [Introduction](#Introduction)
-2. Background
+2. [TLC overview](#TLC-overview)
 3. [Motivation](#Motivation)
 4. [Implementations](#Implementations)
 5. [Evaluation](#Evaluation)
@@ -16,7 +16,20 @@ Threshold logical clocks (TLC) is a protocol for making virtual synchrony on top
 The main purpose of this project is to test TLC with various transport layer implementations and test its performance under different delay characteristics. Also, It is interesting to see how TLC behaves under different adversarial scenarios, so some adversarial behaviors are simulated in this project. 
 
 ## TLC overview
-****
+TLC is an abstract layer for synchronization, which synthesizes a virtual notion of time on an asynchronous network. In TLC every node keeps its own clock and increments it in lock-step with a group of nodes. There are 2 key ideas behind TLC:
+* Nodes progress in groups, collectively.
+* Each node needs to receive a threshold number of messages to advance to the next time step.
+
+Using TLC makes a "virtual synchrony", which can be used by higher levels. So higher-level protocol never need to worry about asynchrony in underlying layers.
+
+### TLC rounds
+In each TLC round:
+1. Every node broadcasts a message and waits for acknowledgments
+2. Upon receiving a message, each node acknowledges that message
+3. Once a node collects tw number of acks, it considers the message to be **threshold witnessed**
+4. A node will increase its time step, once it receives tm number of threshold witnessed messages
+
+A particular protocol instance TLC(tm, tw, n) is parameterized by message threshold tm, witness threshold tw, and number of nodes n.
 
 
 ## Motivation
