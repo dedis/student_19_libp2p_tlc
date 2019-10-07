@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"fmt"
 	"github.com/btcsuite/btcd/btcec"
 	"github.com/libp2p/go-libp2p-core/crypto"
 	"github.com/libp2p/go-libp2p-core/peer"
+	"github.com/multiformats/go-multiaddr"
 	"go.dedis.ch/onet/v3"
 	"log"
 	mrand "math/rand"
@@ -84,6 +86,27 @@ func setupNetworkTopology(n int, id int, host *core.Host, r onet.Roster) {
 
 }
 
+// connectHostToPeer is used for connecting a host to another peer
+func connectHostToPeer(h core.Host, connectToAddress string) {
+	// Creating multi address
+	multiAddr, err := multiaddr.NewMultiaddr(connectToAddress)
+	if err != nil {
+		fmt.Printf("Error : %v\n", err)
+		return
+	}
+
+	pInfo, err := peer.AddrInfoFromP2pAddr(multiAddr)
+	if err != nil {
+		fmt.Printf("Error : %v\n", err)
+		return
+	}
+
+	err = h.Connect(context.Background(), *pInfo)
+	if err != nil {
+		fmt.Printf("Error : %v\n", err)
+	}
+}
+
 func simpleTest(n int, id int, ip string, port string, stop int, failureModel FailureModel) {
 	node, host := setupHost(n, id, ip, port, failureModel)
 
@@ -116,15 +139,15 @@ func StartTest(node *model.Node, stop int) {
 // Testing TLC with majority thresholds with no node failures
 func main() {
 	// Create hosts in libp2p
-	logFile, _ := os.OpenFile("log51.log", os.O_RDWR|os.O_CREATE, 0666)
+	logFile, _ := os.OpenFile("log.log", os.O_RDWR|os.O_CREATE, 0666)
 	model.Logger1 = log.New(logFile, "", log.Ltime|log.Lmicroseconds)
 	Libp2p.Delayed = false
 	id, _ := strconv.Atoi(os.Args[1])
-	//r := onet.Roster{}
-	//address := strings.Split(string(r.List[id].Address),":")
-	//ip := address[0]
-	//port := address[1]
-	ip := "127.0.0.1"
-	port := strconv.Itoa(9000 + id)
-	simpleTest(11, id, ip, port, 10, NoFailure)
+	r := onet.Roster{}
+	address := strings.Split(string(r.List[id].Address), ":")
+	ip := address[0]
+	port := address[1]
+	//ip := "127.0.0.1"
+	//port := strconv.Itoa(9000 + id)
+	simpleTest(5, id, ip, port, 10, NoFailure)
 }
