@@ -13,14 +13,14 @@ link of the [presentation](https://docs.google.com/presentation/d/1RNHOncvFA8lxp
 ## Introduction
 Threshold logical clocks (TLC) is a protocol for making virtual synchrony on top of asynchronous networks. It can be used as an abstraction layer for implementing synchronous protocols without assuming any synchrony in the underlying network layer.  Since it is supposed to work in asynchronous networks, It should tolerate high delays in the transport layer. 
 
-The main purpose of this project is to test TLC with various transport layer implementations and test its performance under different delay characteristics. Also, It is interesting to see how TLC behaves under different adversarial scenarios, so some adversarial behaviors are simulated in this project. 
+The main purpose of this project is to test TLC with various transport layer implementations and test its performance under different delay characteristics. Also, it is interesting to see how TLC behaves under different adversarial scenarios, so some adversarial behaviors are simulated in this project. 
 
 ## TLC overview
-TLC is an abstract layer for synchronization, which synthesizes a virtual notion of time on an asynchronous network. In TLC every node keeps its own clock and increments it in lock-step with a group of nodes. There are 2 key ideas behind TLC:
+TLC is an abstract layer for synchronization, which synthesizes a virtual notion of time on an asynchronous network. In TLC every node keeps its own clock and increments it in lock-step with a group of nodes. There are two key ideas behind TLC:
 * Nodes progress in groups, collectively.
 * Each node needs to receive a threshold number of messages to advance to the next time step.
 
-Using TLC makes a "virtual synchrony", which can be used by higher levels. So higher-level protocol never need to worry about asynchrony in underlying layers.
+Using TLC makes a "virtual synchrony", which can be used by higher levels. So higher-level protocols never need to worry about asynchrony in underlying layers.
 
 ### TLC rounds
 In each TLC round:
@@ -35,10 +35,7 @@ A particular protocol instance TLC(t<sub>m</sub>, t<sub>w</sub>, n) is parameter
 ## Motivation
 We are trying to test different properties of TLC using different transport layers, making sure it behaves in a way it is supposed to. Since TLC is expected to work in asynchronous settings, we should test its tolerance to delays imposed by the network layer. So our first goal is to test TLC with different transport layers and with different delay characteristics.
 
-Then we must make sure that the protocol behaves well in the presence of a network adversary. So, we have to investigate TLC's resilience to adversaries within our thread model. We may violate our thread model to make sure that we can not make progress. 
-
-
-
+Then we must make sure that the protocol behaves well in the presence of a network adversary. So, we have to investigate TLC's resilience to adversaries within our thread model. We may violate our thread model to make sure that we cannot make progress. 
 
 ## Implementations
 There are 2 main implementations for TLC. The first one is based on libp2p and the second one is based on mail protocols. Each implementation has its challenges and characteristics, and it is covered in the following sections.
@@ -73,12 +70,12 @@ For circumventing the stated problem 2 courses of action had been taken:
 1. Introducing a random delay before sending out messages. This approach was successful for some number of nodes but it failed when the number started to grow. Even adding a delay in the order of 10 seconds could not make it work.
 2. Utilizing lower layer functions and placing a channel to handle message receptions, Instead of using the default function. The default function for receiving messages had a buffer with a length of 32, which was not enough for managing message reception. The problem vanished by implementing a custom message handler, using lower layer functions, and it was feasible to simulate with more nodes.
 ---
-### E-mail-based implementation
-E-mail protocols have been used for the second main implementation. E-mail has been chosen because it has a high delay so we could test TLC in high-delay environments. SMTP is used for sending e-mails and IMAP used for receiving e-mails.
+### Email-based implementation
+Email protocols have been used for the second main implementation. Email has been chosen because it has a high delay so we could test TLC in high-delay environments. SMTP is used for sending emails and IMAP used for receiving emails.
 
-SMTP and IMAP are 2 of the main protocols used for sending and receiving e-mails. There are some client-side implementations of these protocols available in Go, So we have used these protocols for our implementation.
+SMTP and IMAP are 2 of the main protocols used for sending and receiving emails. There are some client-side implementations of these protocols available in Go, So we have used these protocols for our implementation.
 
-An e-mail server has been set up in a virtual machine, and it was not powerful. The server introduced some delays to our simulations because it could not deliver messages quickly. Since the goal was to test TLC's delay tolerance, the delay caused by the server was not a major problem.
+An email server has been set up in a virtual machine, and it was not powerful. The server introduced some delays to our simulations because it could not deliver messages quickly. Since the goal was to test TLC's delay tolerance, the delay caused by the server was not a major problem.
 
 ## Evaluation
 In this section, we discuss the evaluation of our implementations. The main question we want to answer is whether TLC can be used in practical situations with different transport layers. In particular, we want to make sure that it behaves properly in high-delay environments.
@@ -109,10 +106,10 @@ Time for 10 rounds (s) | 2.99 | 5.06 | 3.70
 
 Unexpectedly, QUIC-based implementation is slower than the others. Also, It can be seen that in all implementation, it takes less than half of a second for a round to be completed.
 
-### Evaluating e-mail-based implementation
-For this experiment, we have set up an e-mail server and implemented the client-side in Go. For the client-side, we have used gomail for sending e-mails through SMTP, and go-imap for receiving e-mails using IMAP protocol. For the server-side, we have installed iRedMail on a virtual Linux machine, using VirtualBox on the same MacBook. iRedMail uses Postfix for handling SMTP requests and Dovecot for IMAP.
+### Evaluating email-based implementation
+For this experiment, we have set up an email server and implemented the client-side in Go. For the client-side, we have used gomail for sending emails through SMTP, and go-imap for receiving e-mails using IMAP protocol. For the server-side, we have installed iRedMail on a virtual Linux machine, using VirtualBox on the same MacBook. iRedMail uses Postfix for handling SMTP requests and Dovecot for IMAP.
 
-It is worth mentioning that messages are encoded using Protobuf and sent in the subject field of e-mails, in order to prevent problems caused by UTF-8 encoding of e-mail body in the SMTP protocol. 
+It is worth mentioning that messages are encoded using Protobuf and sent in the subject field of emails, in order to prevent problems caused by UTF-8 encoding of email body in the SMTP protocol. 
 
 The simulation has been done by using 5 nodes, for 10 timesteps. It took  293 seconds for them to reach to timestep 10.
 
@@ -127,7 +124,7 @@ Only the TCP version of libp2p-based implementation has been used for these simu
 ### Minority attack
 In this attack, the adversary attacks a minority number of nodes and keeps them in S<sub>d</sub> set. Healthy nodes expected to make progress, since they are still a majority. 
 
-For simulating this attack, we have used 11 nodes with the majority threshold and tried to simulate for 10 timesteps. First, we start with all nodes in a good state. After 4 seconds, the attacker isolates 5 nodes and prevents them from receiving and sending messages. Since these nodes can not receive any messages, they get stuck, but the other 6 nodes continue to make progress.
+For simulating this attack, we have used 11 nodes with the majority threshold and tried to simulate for 10 timesteps. First, we start with all nodes in a good state. After 4 seconds, the attacker isolates 5 nodes and prevents them from receiving and sending messages. Since these nodes cannot receive any messages, they get stuck, but the other 6 nodes continue to make progress.
 
 <p align="center">
   <img src="Minority_Attack.png" width="600" title="Minority_Attack">
@@ -136,7 +133,7 @@ For simulating this attack, we have used 11 nodes with the majority threshold an
 ### Violating the threat model
 In this attack, the attack is performed on more than the threshold number of nodes. Since we are violating the threat model, we expect nodes to halt under this attack.
 
-The number of nodes is the same as the previous attack. We start with all nodes in a healthy state, then the attacker tries to attack 5 nodes without violating the threat model. Healthy nodes continue to make progress. After some seconds, the attacker adds another node to the S<sub>d</sub> group, making healthy nodes less than the threshold, so they can not make progress. After some seconds a node (shown in purple) is removed from the S<sub>d</sub> set and then it catches up with other nodes. rejoining nodes will immediately start making progress, after receiving in-flight messages.
+The number of nodes is the same as the previous attack. We start with all nodes in a healthy state, then the attacker tries to attack 5 nodes without violating the threat model. Healthy nodes continue to make progress. After some seconds, the attacker adds another node to the S<sub>d</sub> group, making healthy nodes less than the threshold, so they cannot make progress. After some seconds a node (shown in purple) is removed from the S<sub>d</sub> set and then it catches up with other nodes. rejoining nodes will immediately start making progress, after receiving in-flight messages.
 
 <p align="center">
   <img src="Violating.png" width="600" title="Violating">
@@ -152,4 +149,4 @@ For simulating this attack, we have simulated TLC(11,6,6), starting with all nod
 </p>
 
 ## Conclusion
-We showed that TLC can tolerate high delays in the transport layer. We also tested the good behavior of TLC under different attacks within the assumed threat model. We confirmed that even violating the threat model can not affect the safety of TLC.
+We showed that TLC can tolerate high delays in the transport layer. We also tested the correct behavior of TLC under different attacks within the assumed threat model. We confirmed that even violating the threat model cannot affect the safety of TLC.
