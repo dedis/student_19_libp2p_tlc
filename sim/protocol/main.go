@@ -154,8 +154,7 @@ func main() {
 	}
 
 	// Create hosts in libp2p
-	logFile, _ := os.OpenFile("log.log", os.O_RDWR|os.O_CREATE, 0666)
-	model.Logger1 = log.New(logFile, "", log.Ltime|log.Lmicroseconds)
+	model.Logger1 = log.New(os.Stdout, "", log.Ltime|log.Lmicroseconds)
 	Libp2p.Delayed = false
 	id, _ := strconv.Atoi(os.Args[1])
 	address := strings.Split(string(r.List[id].Address)[6:], ":")
