@@ -8,6 +8,7 @@ import (
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
 	mrand "math/rand"
+	"strconv"
 	"strings"
 	"time"
 
@@ -148,20 +149,20 @@ func (c *Libp2pPubSub) CreatePeer(nodeId int, port int) *core.Host {
 		panic(err)
 	}
 
-	fmt.Printf("Node %v is %s\n", nodeId, getLocalhostAddress(h))
+	fmt.Printf("Node %v is %s\n", nodeId, GetLocalhostAddress(h))
 
 	return &h
 }
 
-// createPeer creates a peer on localhost and configures it to use libp2p.
-func (c *Libp2pPubSub) CreatePeerWithIp(nodeId int, ip string, port string) *core.Host {
+// CreatePeerWithIp creates a peer on specified ip and port and configures it to use libp2p.
+func (c *Libp2pPubSub) CreatePeerWithIp(nodeId int, ip string, port int) *core.Host {
 	// Creating a node
 	h, err := createHostWithIp(nodeId, ip, port)
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Printf("Node %v is %s\n", nodeId, getLocalhostAddress(h))
+	fmt.Printf("Node %v is %s\n", nodeId, GetLocalhostAddress(h))
 
 	return &h
 }
@@ -267,9 +268,9 @@ func createHost(port int) (core.Host, error) {
 	return h, nil
 }
 
-// createHost creates a host with some default options and a signing identity
-func createHostWithIp(nodeId int, ip string, port string) (core.Host, error) {
-	// Producing private key
+// createHostWithIp creates a host with some default options and a signing identity on specified port and ip
+func createHostWithIp(nodeId int, ip string, port int) (core.Host, error) {
+	// Producing private key using nodeId
 	r := mrand.New(mrand.NewSource(int64(nodeId)))
 
 	prvKey, _ := ecdsa.GenerateKey(btcec.S256(), r)
@@ -277,7 +278,7 @@ func createHostWithIp(nodeId int, ip string, port string) (core.Host, error) {
 
 	// Starting a peer with default configs
 	opts := []libp2p.Option{
-		libp2p.ListenAddrStrings(fmt.Sprintf("/ip4/0.0.0.0/tcp/%s", port)),
+		libp2p.ListenAddrStrings(fmt.Sprintf("/ip4/0.0.0.0/tcp/%s", strconv.Itoa(port))),
 		libp2p.Identity(sk),
 		libp2p.DefaultTransports,
 		libp2p.DefaultMuxers,
@@ -339,8 +340,8 @@ func createHostWebSocket(port int) (core.Host, error) {
 	return h, nil
 }
 
-// getLocalhostAddress is used for getting address of hosts
-func getLocalhostAddress(h core.Host) string {
+// GetLocalhostAddress is used for getting address of hosts
+func GetLocalhostAddress(h core.Host) string {
 	for _, addr := range h.Addrs() {
 		if strings.Contains(addr.String(), "127.0.0.1") {
 			return addr.String() + "/p2p/" + h.ID().Pretty()

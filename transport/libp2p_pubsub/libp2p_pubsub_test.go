@@ -137,15 +137,15 @@ func setupNetworkTopology(hosts []*core.Host) {
 				if j == i{
 					continue
 				}
-				connectHostToPeer(*hosts[i], getLocalhostAddress(*nxtHost))
+				connectHostToPeer(*hosts[i], GetLocalhostAddress(*nxtHost))
 			}
 		}
 	*/
 	for i := 0; i < n; i++ {
-		connectHostToPeer(*hosts[i], getLocalhostAddress(*hosts[(i+1)%n]))
-		//connectHostToPeer(*hosts[i], getLocalhostAddress(*hosts[(i+2)%n]))
-		//connectHostToPeer(*hosts[i], getLocalhostAddress(*hosts[(i+3)%n]))
-		//connectHostToPeer(*hosts[i], getLocalhostAddress(*hosts[(i+4)%n]))
+		connectHostToPeer(*hosts[i], GetLocalhostAddress(*hosts[(i+1)%n]))
+		//connectHostToPeer(*hosts[i], GetLocalhostAddress(*hosts[(i+2)%n]))
+		//connectHostToPeer(*hosts[i], GetLocalhostAddress(*hosts[(i+3)%n]))
+		//connectHostToPeer(*hosts[i], GetLocalhostAddress(*hosts[(i+4)%n]))
 	}
 	// Wait so that subscriptions on topic will be done and all peers will "know" of all other peers
 	time.Sleep(time.Second * 2)

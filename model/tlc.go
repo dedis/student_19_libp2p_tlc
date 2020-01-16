@@ -49,7 +49,7 @@ func (node *Node) WaitForMsg(stop int) {
 
 			msg := node.ConvertMsg.BytesToModelMessage(*msgBytes)
 
-			fmt.Printf("node %d in step %d ;Received MSG with step %d type %d source: %d\n", node.Id, node.TimeStep, msg.Step, msg.MsgType, msg.Source)
+			//fmt.Printf("node %d in step %d ;Received MSG with step %d type %d source: %d\n", node.Id, node.TimeStep, msg.Step, msg.MsgType, msg.Source)
 
 			// Used for stopping the execution after some timesteps
 			if node.TimeStep == stop {
@@ -85,9 +85,10 @@ func (node *Node) WaitForMsg(stop int) {
 				} else if msg.Step == node.TimeStep {
 					// Count message toward the threshold
 					node.Wits += 1
-					fmt.Printf("WITS: node %d , %d\n", node.Id, node.Wits)
+					//fmt.Printf("WITS: node %d , %d\n", node.Id, node.Wits)
 
 					if node.Wits >= node.ThresholdWit {
+						fmt.Printf("Witnessed by threshold. node %d !\n", node.Id)
 						// Log the message in history
 						node.History = append(node.History, *msg)
 						// Advance to next time step
@@ -96,19 +97,20 @@ func (node *Node) WaitForMsg(stop int) {
 				}
 
 			case Ack:
-				fmt.Printf("received ACK. node %d %d\n", node.Id, msg.Source)
+				//fmt.Printf("received ACK. node %d %d\n", node.Id, msg.Source)
 
 				// Checking that the ack is for message of this step
 				if (msg.Source != node.CurrentMsg.Source) || (msg.Step != node.CurrentMsg.Step) {
 					return
 				}
-				fmt.Printf("received ACK. node %d !\n", node.Id)
+				//fmt.Printf("received ACK. node %d !\n", node.Id)
 
 				// Count acks toward the threshold
 				node.Acks += 1
 
 				if node.Acks >= node.ThresholdAck {
 					// Send witnessed message if the acks are more than threshold
+					fmt.Printf("Acked by threshold. node %d !\n", node.Id)
 					msg.MsgType = Wit
 					msgBytes := node.ConvertMsg.MessageToBytes(*msg)
 					node.Comm.Broadcast(*msgBytes)
@@ -131,7 +133,7 @@ func (node *Node) WaitForMsg(stop int) {
 
 				} else if msg.Step == node.TimeStep {
 					msg.MsgType = Ack
-					fmt.Printf("ACKing by node %d, for msg %d\n", node.Id, msg.Source)
+					//fmt.Printf("ACKing by node %d, for msg %d\n", node.Id, msg.Source)
 					msgBytes := node.ConvertMsg.MessageToBytes(*msg)
 					node.Comm.Send(*msgBytes, msg.Source)
 				}
