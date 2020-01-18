@@ -7,7 +7,8 @@ import (
 	"fmt"
 	"github.com/libp2p/go-libp2p-core/peer"
 	"github.com/multiformats/go-multiaddr"
-	math_rand "math/rand"
+	mrand "math/rand"
+	"strconv"
 	"strings"
 	"time"
 
@@ -27,7 +28,7 @@ var Delayed = true
 
 const BufferLen = 500
 
-type libp2pPubSub struct {
+type Libp2pPubSub struct {
 	pubsub       *pubsub.PubSub       // PubSub of each individual node
 	subscription *pubsub.Subscription // Subscription of individual node
 	topic        string               // PubSub topic
@@ -37,12 +38,12 @@ type libp2pPubSub struct {
 }
 
 // Broadcast Uses PubSub publish to broadcast messages to other peers
-func (c *libp2pPubSub) Broadcast(msgBytes []byte) {
+func (c *Libp2pPubSub) Broadcast(msgBytes []byte) {
 	// Broadcasting to a topic in PubSub
 	go func(msgBytes []byte, topic string, pubsub *pubsub.PubSub) {
 		// Send the message with a delay in order to prevent message loss in libp2p
 		if Delayed {
-			time.Sleep(time.Duration(delayBias+math_rand.Intn(delayRange)) * time.Millisecond)
+			time.Sleep(time.Duration(delayBias+mrand.Intn(delayRange)) * time.Millisecond)
 		}
 
 		err := pubsub.Publish(topic, msgBytes)
@@ -54,13 +55,13 @@ func (c *libp2pPubSub) Broadcast(msgBytes []byte) {
 }
 
 // Send uses Broadcast for sending messages
-func (c *libp2pPubSub) Send(msgBytes []byte, id int) {
+func (c *Libp2pPubSub) Send(msgBytes []byte, id int) {
 	// In libp2p implementation, we also broadcast instead of sending directly. So Acks will be broadcast in this case.
 	c.Broadcast(msgBytes)
 }
 
 // Receive gets message from PubSub in a blocking way
-func (c *libp2pPubSub) Receive() *[]byte {
+func (c *Libp2pPubSub) Receive() *[]byte {
 	// Check buffer for existing messages
 	if !c.victim {
 		select {
@@ -110,12 +111,12 @@ func (c *libp2pPubSub) Receive() *[]byte {
 	return &msgBytes
 }
 
-func (c *libp2pPubSub) Disconnect() {
+func (c *Libp2pPubSub) Disconnect() {
 	c.subscription.Cancel()
 	fmt.Println("DISCONNECT")
 }
 
-func (c *libp2pPubSub) Reconnect(topic string) {
+func (c *Libp2pPubSub) Reconnect(topic string) {
 	var err error
 	if topic != "" {
 		c.topic = topic
@@ -129,7 +130,7 @@ func (c *libp2pPubSub) Reconnect(topic string) {
 }
 
 // Cancel unsubscribes a node from pubsub
-func (c *libp2pPubSub) Cancel(cancelTime int, reconnectTime int) {
+func (c *Libp2pPubSub) Cancel(cancelTime int, reconnectTime int) {
 	go func() {
 		time.Sleep(time.Duration(cancelTime) * time.Millisecond)
 		fmt.Println("	CANCELING	")
@@ -141,20 +142,33 @@ func (c *libp2pPubSub) Cancel(cancelTime int, reconnectTime int) {
 }
 
 // createPeer creates a peer on localhost and configures it to use libp2p.
-func (c *libp2pPubSub) CreatePeer(nodeId int, port int) *core.Host {
+func (c *Libp2pPubSub) CreatePeer(nodeId int, port int) *core.Host {
 	// Creating a node
 	h, err := createHost(port)
 	if err != nil {
 		panic(err)
 	}
 
-	fmt.Printf("Node %v is %s\n", nodeId, getLocalhostAddress(h))
+	fmt.Printf("Node %v is %s\n", nodeId, GetLocalhostAddress(h))
+
+	return &h
+}
+
+// CreatePeerWithIp creates a peer on specified ip and port and configures it to use libp2p.
+func (c *Libp2pPubSub) CreatePeerWithIp(nodeId int, ip string, port int) *core.Host {
+	// Creating a node
+	h, err := createHostWithIp(nodeId, ip, port)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("Node %v is %s\n", nodeId, GetLocalhostAddress(h))
 
 	return &h
 }
 
 // initializePubSub creates a PubSub for the peer and also subscribes to a topic
-func (c *libp2pPubSub) InitializePubSub(h core.Host) {
+func (c *Libp2pPubSub) InitializePubSub(h core.Host) {
 	var err error
 	// Creating pubsub
 	// every peer has its own PubSub
@@ -164,6 +178,7 @@ func (c *libp2pPubSub) InitializePubSub(h core.Host) {
 		return
 	}
 
+	c.topic = "TLC"
 	// Creating a subscription and subscribing to the topic
 	c.subscription, err = c.pubsub.Subscribe(c.topic)
 	if err != nil {
@@ -174,7 +189,7 @@ func (c *libp2pPubSub) InitializePubSub(h core.Host) {
 }
 
 // InitializeVictim initializes buffer for keeping messages when a node is attacked by adversary.
-func (c *libp2pPubSub) InitializeVictim(makeBuffer bool) {
+func (c *Libp2pPubSub) InitializeVictim(makeBuffer bool) {
 	// victim is always false in initialization
 	c.victim = false
 	if makeBuffer {
@@ -185,13 +200,13 @@ func (c *libp2pPubSub) InitializeVictim(makeBuffer bool) {
 }
 
 // AttackVictim adds a node to the set of indefinite-delayed nodes.
-func (c *libp2pPubSub) AttackVictim() {
+func (c *Libp2pPubSub) AttackVictim() {
 	c.victim = true
 	c.makeVictimNotGossip()
 }
 
 // ReleaseVictim removes the node from set of delayed nodes.
-func (c *libp2pPubSub) ReleaseVictim() {
+func (c *Libp2pPubSub) ReleaseVictim() {
 	c.Disconnect()
 	c.victim = false
 	c.Reconnect("")
@@ -204,12 +219,12 @@ func (c *libp2pPubSub) ReleaseVictim() {
 }
 
 // JoinGroup adds nodes within the same groups to the node's group variable.
-func (c *libp2pPubSub) JoinGroup(group []int) {
+func (c *Libp2pPubSub) JoinGroup(group []int) {
 	c.group = group
 }
 
 // makeVictimNotGossip prevents victim from participating in gossip protocol
-func (c *libp2pPubSub) makeVictimNotGossip() {
+func (c *Libp2pPubSub) makeVictimNotGossip() {
 	// Registering a message validator function. This function will process every received message by pubsub and based
 	// on return value will forward it to other nodes. Returning false will prevent the peer from forwarding the message
 	err := c.pubsub.RegisterTopicValidator(c.topic, func(ctx context.Context, pid peer.ID, msg *pubsub.Message) bool {
@@ -239,6 +254,31 @@ func createHost(port int) (core.Host, error) {
 	// Starting a peer with default configs
 	opts := []libp2p.Option{
 		libp2p.ListenAddrStrings(fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", port)),
+		libp2p.Identity(sk),
+		libp2p.DefaultTransports,
+		libp2p.DefaultMuxers,
+		libp2p.DefaultSecurity,
+	}
+
+	h, err := libp2p.New(context.Background(), opts...)
+	if err != nil {
+		return nil, err
+	}
+
+	return h, nil
+}
+
+// createHostWithIp creates a host with some default options and a signing identity on specified port and ip
+func createHostWithIp(nodeId int, ip string, port int) (core.Host, error) {
+	// Producing private key using nodeId
+	r := mrand.New(mrand.NewSource(int64(nodeId)))
+
+	prvKey, _ := ecdsa.GenerateKey(btcec.S256(), r)
+	sk := (*crypto.Secp256k1PrivateKey)(prvKey)
+
+	// Starting a peer with default configs
+	opts := []libp2p.Option{
+		libp2p.ListenAddrStrings(fmt.Sprintf("/ip4/0.0.0.0/tcp/%s", strconv.Itoa(port))),
 		libp2p.Identity(sk),
 		libp2p.DefaultTransports,
 		libp2p.DefaultMuxers,
@@ -300,8 +340,8 @@ func createHostWebSocket(port int) (core.Host, error) {
 	return h, nil
 }
 
-// getLocalhostAddress is used for getting address of hosts
-func getLocalhostAddress(h core.Host) string {
+// GetLocalhostAddress is used for getting address of hosts
+func GetLocalhostAddress(h core.Host) string {
 	for _, addr := range h.Addrs() {
 		if strings.Contains(addr.String(), "127.0.0.1") {
 			return addr.String() + "/p2p/" + h.ID().Pretty()

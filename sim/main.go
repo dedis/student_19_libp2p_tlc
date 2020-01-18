@@ -1,16 +1,17 @@
 package main
 
 import (
-	"io/ioutil"
-	"os"
-	"os/exec"
-	"path"
-
+	"fmt"
 	"github.com/BurntSushi/toml"
 	"go.dedis.ch/onet/v3"
 	"go.dedis.ch/onet/v3/log"
 	"go.dedis.ch/onet/v3/simul"
 	"go.dedis.ch/protobuf"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path"
+	"strconv"
 )
 
 func init() {
@@ -73,8 +74,10 @@ func (e *simulation) Run(config *onet.SimulationConfig) error {
 
 func (e *simulation) Node(config *onet.SimulationConfig) error {
 	log.LLvl1("** Executing Node")
-
-	cmd := exec.Command("./protocol")
+	fmt.Println(config.Server.ServerIdentity.Address)
+	a, _ := config.Roster.Search(config.Server.ServerIdentity.ID)
+	fmt.Println(a)
+	cmd := exec.Command("./protocol", strconv.Itoa(a))
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	err := cmd.Run()
