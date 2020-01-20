@@ -1,5 +1,8 @@
-# Internship project report
-link of the [presentation](https://docs.google.com/presentation/d/1RNHOncvFA8lxpKP2bQU5JFEXrFGsbp3lpjf-URfH3xQ/edit?usp=sharing).
+# Investigating Different Transport Layer Implementations for TLC
+
+Author: [Mahdi Bakhshi](https://github.com/MBakhshi96)
+
+Presentation slides are available [here](https://docs.google.com/presentation/d/1RNHOncvFA8lxpKP2bQU5JFEXrFGsbp3lpjf-URfH3xQ/edit?usp=sharing).
 ## Table of Contents
 1. [Introduction](#Introduction)
 2. [TLC overview](#TLC-overview)
@@ -80,11 +83,11 @@ An email server has been set up in a virtual machine, and it was not powerful. T
 ## Evaluation
 In this section, we discuss the evaluation of our implementations. The main question we want to answer is whether TLC can be used in practical situations with different transport layers. In particular, we want to make sure that it behaves properly in high-delay environments.
 
-We implemented TLC in Go. All experiments were run on a MacBookPro 2017 having a 2.5 GHz Intel Core i7 CPU and 16 GB of RAM.
+We implemented TLC in Go. All experiments except the second were run on a MacBookPro 2017 having a 2.5 GHz Intel Core i7 CPU and 16 GB of RAM.
 
 
 
-### Evaluating libp2p-based implementation
+### Evaluating libp2p-based implementation on a single machine
 In this section, we discuss the evaluation of our implementations. The main question we want to answer is whether TLC can be used in practical situations with different transport layers. First, we want to look at the effect of different transport layers on TLC round lengths. Then we want to show that the safety and liveness properties hold under the assumed threat model. Additionally, we want to show that when the threat model is violated, only the liveness is affected.
 
 The network topology is a simple arrangement in which every node is only connected to 4 subsequent nodes in a ring. Every node can publish a message and it will be gossiped to reach all nodes, despite nodes not being directly connected.
@@ -96,6 +99,17 @@ We have measured the time it takes for nodes to reach timestep 10 and the result
 </p>
 
 We can see that the round lengths are a polynomial function of the number of nodes. An increase in the number of nodes causes messages and acknowledgments to pile up, making rounds take longer to complete.
+
+### Evaluating implementation on Deterlab
+We ran this experiment on Deterlab using 19 machines, each having two 2.2GHZ Intel Xeon E5-2420 v2 CPUs and 24 GB of RAM. Each machine hosts a number of TLC nodes, each connected to four other nodes on the same machine and four on the others.
+
+We have run the experiment, changing the number of TLC nodes on each server, measuring the time it takes for nodes to reach timestep 5. The result can be seen on the graph.
+
+<p align="center">
+  <img src="deterlab.png" width="600" title="Deterlab">
+</p>
+
+It was not possible to increase the number of nodes on a server beyond 15. It means that the highest overall number of nodes we could reach was 285.
 
 ### Evaluating different transport modules of libp2p
 For this experiment, we have used TCP, QUIC, and WebSocket as the transport modules of libp2p. We have run the experiment using 11 nodes for 10 timesteps, with thresholds equal to 6. The result can be seen in the table.
