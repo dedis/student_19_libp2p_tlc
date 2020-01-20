@@ -24,11 +24,13 @@ mail-based implementation needs to setup a working mail server. You may use iRed
 
 ## Repository structure
     .
+    ├── Report                       A short report, illustrating results obtained in simulations
     ├── model                        TLC protocol implementation with abstract transport layer
+    ├── sim                          Onet simulation driver                        
     ├── transport                    Contains differnent transport layer implementations
         ├── channel                  Go channel based transport
         ├── libp2p_pubsub            Libp2p-based implementataion using pubsub
         └── mail                     Mail-based implementation
         
 
-## Usage
+Contact me ([Mahdi Bakhshi](https://github.com/MBakhshi96)) if you have any problems.
