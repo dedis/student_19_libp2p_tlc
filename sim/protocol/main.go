@@ -27,9 +27,9 @@ import (
 )
 
 const DefaultPort = 2020
-const TLCNodesPerServer = 10
-const PerServerConnectionsNum = 9
-const InterServerConnectionsNum = 18
+const TLCNodesPerServer = 15
+const PerServerConnectionsNum = 4
+const InterServerConnectionsNum = 4
 const ServersNum = 19
 
 // setupServerHosts is responsible for creating tlc nodes and also libp2p hosts on each server.

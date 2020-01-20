@@ -4,6 +4,7 @@ BF = 2
 Rounds = 4
 Suite = "Ed25519"
 PreScript = "pre.sh"
+RunWait = "30m"
 
 Hosts,	  Delay,	Ratio,	Other
 19,		  50,		0.1,	"Other kinds of data"
